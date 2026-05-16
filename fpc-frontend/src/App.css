@@ -1,0 +1,67 @@
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-dark);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+  position: relative;
+  min-width: 0; /* Important for flex children to allow shrinking */
+}
+
+.page-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .page-content {
+    padding: 1rem;
+  }
+}
+
+.mobile-overlay {
+  display: none;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+}
+
+@media (max-width: 768px) {
+  .mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    backdrop-filter: blur(4px);
+  }
+}

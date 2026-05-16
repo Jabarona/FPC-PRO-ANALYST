@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  api:
+    container_name: fpc_fastapi_api
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DB_HOST=host.docker.internal
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Le da permiso explícito a la API para ver tu Windows

@@ -1,0 +1,269 @@
+.standings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.standings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.standings-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+}
+
+.tab {
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-speed);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab.active {
+  background-color: var(--accent-yellow);
+  color: var(--bg-dark);
+}
+
+.year-selector {
+  position: relative;
+}
+
+.year-select {
+  appearance: none;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem 2.5rem 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.year-select:focus {
+  border-color: var(--accent-yellow);
+}
+
+.update-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.last-update {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  letter-spacing: 0.5px;
+}
+
+.update-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all var(--transition-speed);
+}
+
+.update-btn:hover {
+  background-color: var(--bg-card-hover);
+  border-color: var(--text-muted);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.table-wrapper {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.standings-table th {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.standings-table td {
+  padding: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.standings-table tr:hover td {
+  background-color: var(--bg-card-hover);
+}
+
+.standings-table tr:last-child td {
+  border-bottom: none;
+}
+
+.col-rank {
+  color: var(--accent-yellow) !important;
+  font-weight: 700;
+  width: 60px;
+}
+
+.col-team {
+  text-align: left;
+  color: var(--text-primary) !important;
+  width: 30%;
+}
+
+.team-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.team-logo-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.col-pts {
+  color: var(--accent-yellow) !important;
+  font-size: 1rem !important;
+  font-weight: 700;
+}
+
+.qualified td {
+  position: relative;
+}
+
+.qualified .col-rank::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10%;
+  height: 80%;
+  width: 3px;
+  background-color: var(--accent-yellow);
+}
+
+@media (max-width: 768px) {
+  .standings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .standings-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .tabs-container {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tabs {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 80px; /* Space for bottom nav */
+  }
+
+  .standings-table {
+    min-width: 600px;
+  }
+
+  .col-team {
+    width: 200px;
+  }
+}

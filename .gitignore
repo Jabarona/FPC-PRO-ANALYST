@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.mouse
+.pytest_cache/
+.coverage
+htmlcov/
+.spyderproject
+.settings
+.project
+.pydevproject
+
+# Environment variables (Crucial!)
+.env
+fpc-backend/.env
+
+# Node / JS / React
+node_modules/
+dist/
+build/
+.eslintcache
+.vite/
+.parcel-cache
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
