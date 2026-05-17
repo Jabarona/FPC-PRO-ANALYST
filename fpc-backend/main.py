@@ -107,11 +107,29 @@ def get_fase_regular(anio: int, torneo: str):
     return {"anio": anio, "torneo": torneo, "fase": "Fase Regular", "tabla": data_tabla}
 
 
+HISTORICAL_GROUPS = {
+    (2022, "Apertura"): {
+        "A": ["Millonarios", "Atletico Nacional", "Junior", "Bucaramanga"],
+        "B": ["Deportes Tolima", "Independiente Medellin", "La Equidad", "Envigado"]
+    },
+    (2022, "Clausura"): {
+        "A": ["Santa Fe", "Millonarios", "Deportivo Pereira", "Junior"],
+        "B": ["Aguilas Doradas", "Independiente Medellin", "Deportivo Pasto", "America de Cali"]
+    },
+    (2024, "Apertura"): {
+        "A": ["Bucaramanga", "Deportivo Pereira", "Millonarios", "Junior"],
+        "B": ["Deportes Tolima", "Santa Fe", "Once Caldas", "La Equidad"]
+    },
+    (2026, "Apertura"): {
+        "A": ["Atletico Nacional", "Millonarios", "Bucaramanga", "Junior"],
+        "B": ["America de Cali", "Santa Fe", "Deportivo Cali", "Aguilas Doradas"]
+    }
+}
+
 @app.get("/api/v1/tabla/cuadrangulares/{anio}/{torneo}/{grupo}")
 def get_cuadrangulares(anio: int, torneo: str, grupo: str):
     """
-    Pestañas: Cuadrangulares (Grupo A o Grupo B) de cada torneo
-    Ejemplo: /api/v1/tabla/cuadrangulares/2022/apertura/A
+    Retorna la tabla de cuadrangulares del Grupo A o B de forma dinámica o basándose en registros históricos.
     """
     torneo_cap = torneo.strip().capitalize()
     grupo_cap = grupo.strip().upper() # 'A' o 'B'
@@ -120,11 +138,66 @@ def get_cuadrangulares(anio: int, torneo: str, grupo: str):
         raise HTTPException(status_code=400, detail="Parámetros inválidos. Ejemplo: /2022/apertura/A")
         
     df = get_db_dataframe()
-    # Whitelist para las 6 fechas del grupo específico
-    valid_rounds = [f"{torneo_cap} - Quadrangular - Group {grupo_cap} - {i}" for i in range(1, 7)]
+    df_year = df[df['season'] == anio].copy()
     
-    data_tabla = build_table_stats(df, anio, valid_rounds)
-    return {"anio": anio, "torneo": torneo, "fase": f"Cuadrangular Grupo {grupo_cap}", "tabla": data_tabla}
+    # Filtrar solo partidos de cuadrangulares
+    df_filtered = df_year[df_year['jornada'].str.startswith(f"{torneo_cap} - Quadrangular -", na=False)].copy()
+    
+    if df_filtered.empty:
+        return {"anio": anio, "torneo": torneo, "fase": f"Cuadrangular Grupo {grupo_cap}", "tabla": []}
+
+    target_teams = []
+    
+    # 1. Intentar usar mapeo histórico oficial si existe
+    if (anio, torneo_cap) in HISTORICAL_GROUPS:
+        target_teams = HISTORICAL_GROUPS[(anio, torneo_cap)].get(grupo_cap, [])
+    else:
+        # 2. De lo contrario, ejecutar algoritmo dinámico de particionado de componentes conexas (Grafos)
+        adj = {}
+        for _, row in df_filtered.iterrows():
+            u, v = row['equipo_local'], row['equipo_visitante']
+            if u not in adj: adj[u] = set()
+            if v not in adj: adj[v] = set()
+            adj[u].add(v)
+            adj[v].add(u)
+        
+        components = []
+        visited = set()
+        for node in adj:
+            if node not in visited:
+                comp = []
+                q = [node]
+                visited.add(node)
+                while q:
+                    curr = q.pop(0)
+                    comp.append(curr)
+                    for neighbor in adj[curr]:
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            q.append(neighbor)
+                components.append(sorted(comp))
+        
+        # Ordenamos las componentes por orden alfabético del primer equipo para consistencia
+        components = sorted(components, key=lambda x: x[0] if x else "")
+        
+        if len(components) >= 2:
+            groups = {"A": components[0], "B": components[1]}
+            target_teams = groups.get(grupo_cap, [])
+        elif len(components) == 1:
+            # Si solo se ha jugado un grupo, asumirlo como el A
+            groups = {"A": components[0], "B": []}
+            target_teams = groups.get(grupo_cap, [])
+        else:
+            # Fallback
+            all_teams = sorted(list(set(df_filtered['equipo_local'].unique()) | set(df_filtered['equipo_visitante'].unique())))
+            if len(all_teams) >= 8:
+                groups = {"A": all_teams[:4], "B": all_teams[4:]}
+                target_teams = groups.get(grupo_cap, [])
+
+    df_group = df_filtered[(df_filtered['equipo_local'].isin(target_teams)) & (df_filtered['equipo_visitante'].isin(target_teams))]
+    tabla_ordenada = build_table_stats(df_group, anio, df_group['jornada'].unique().tolist())
+           
+    return {"anio": anio, "torneo": torneo, "fase": f"Cuadrangular Grupo {grupo_cap}", "tabla": tabla_ordenada}
 
 @app.get("/api/v1/equipos")
 def get_equipos():
@@ -202,4 +275,4 @@ def get_team_stats(equipo: str):
         "form": form[::-1], # Invertir para que el más reciente esté al final a la derecha
         "recent_matches": recent_matches,
         "stats": stats
-    }
+    }
