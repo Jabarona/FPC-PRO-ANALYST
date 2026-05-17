@@ -194,7 +194,16 @@ def get_cuadrangulares(anio: int, torneo: str, grupo: str):
                 groups = {"A": all_teams[:4], "B": all_teams[4:]}
                 target_teams = groups.get(grupo_cap, [])
 
-    df_group = df_filtered[(df_filtered['equipo_local'].isin(target_teams)) & (df_filtered['equipo_visitante'].isin(target_teams))]
+    import unicodedata
+    def normalize_team(name):
+        if not name:
+            return ""
+        return "".join(c for c in unicodedata.normalize('NFD', str(name)) if unicodedata.category(c) != 'Mn').lower().strip()
+        
+    target_teams_norm = {normalize_team(t) for t in target_teams}
+    df_group = df_filtered[
+        df_filtered.apply(lambda row: normalize_team(row['equipo_local']) in target_teams_norm and normalize_team(row['equipo_visitante']) in target_teams_norm, axis=1)
+    ]
     tabla_ordenada = build_table_stats(df_group, anio, df_group['jornada'].unique().tolist())
            
     return {"anio": anio, "torneo": torneo, "fase": f"Cuadrangular Grupo {grupo_cap}", "tabla": tabla_ordenada}
