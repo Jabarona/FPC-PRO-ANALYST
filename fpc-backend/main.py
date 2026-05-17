@@ -1,10 +1,21 @@
 # main.py
 import os
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+
+from auth import (
+    User,
+    UserRead,
+    UserCreate,
+    UserUpdate,
+    auth_backend,
+    fastapi_users,
+    current_active_user,
+    create_db_and_tables
+)
 
 load_dotenv()
 
@@ -13,10 +24,49 @@ app = FastAPI(
     description="API Backend para alimentar las pestañas de tablas de posiciones del FPC en React"
 )
 
-# CONFIGURACIÓN DE CORS: Permite que tu app de React (ej. localhost:5173 o 3000) se conecte sin bloqueos
+@app.on_event("startup")
+async def on_startup():
+    # Crea automáticamente las tablas de usuarios en Postgres si no existen
+    await create_db_and_tables()
+
+# --- RUTAS AUTOMÁTICAS DE FASTAPI USERS ---
+app.include_router(
+    fastapi_users.get_auth_router(auth_backend),
+    prefix="/auth/jwt",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+# --- EJEMPLO DE RUTA PROTEGIDA (CASO DE USO) ---
+@app.get("/api/v1/analisis/dashboard", tags=["analisis"])
+async def get_analisis_dashboard(user: User = Depends(current_active_user)):
+    """
+    Ruta protegida: Solo accesible si el usuario envía un token JWT válido.
+    FastAPI Users se encarga de validar el token e inyectar el usuario logueado en 'user'.
+    Si no hay token, rechaza con Error 401 automáticamente.
+    """
+    return {
+        "message": f"¡Bienvenido al análisis avanzado, {user.email}!",
+        "equipo_favorito": user.equipo_favorito,
+        "analisis_premium": {
+            "rendimiento_general": "Alto",
+            "probabilidad_campeonato": "75%" if user.equipo_favorito else "No definido"
+        }
+    }
+
+# CONFIGURACIÓN DE CORS: Permite que tu app de React se conecte sin bloqueos
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción puedes cambiar el "*" por la URL de tu web
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

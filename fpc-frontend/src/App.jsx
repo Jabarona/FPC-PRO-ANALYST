@@ -4,19 +4,16 @@ import Topbar from './components/Topbar';
 import Standings from './components/Standings';
 import Home from './components/Home';
 import TeamDashboard from './components/TeamDashboard';
-import TeamSelector from './components/TeamSelector';
 import TeamsList from './components/TeamsList';
 import './App.css';
+import { useAuth } from './context/AuthContext';
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
-  const [favoriteTeam, setFavoriteTeam] = useState(localStorage.getItem('fav_team'));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
 
-  const handleSelectTeam = (team) => {
-    setFavoriteTeam(team);
-    localStorage.setItem('fav_team', team);
-  };
+  const favoriteTeam = user?.equipo_favorito || null;
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -24,7 +21,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {!favoriteTeam && <TeamSelector onSelectTeam={handleSelectTeam} />}
       <Sidebar 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 
@@ -38,8 +34,8 @@ function App() {
           {activeTab === 'home' && <Home />}
           {activeTab === 'fixtures' && <div className="placeholder">Fixtures (Próximamente)</div>}
           {activeTab === 'teams' && <TeamsList />}
-          {activeTab === 'my_team' && <TeamDashboard teamName={favoriteTeam} />}
-          {activeTab === 'analytics' && <div className="placeholder">Analytics (Próximamente)</div>}
+          {activeTab === 'my_team' && user && <TeamDashboard teamName={favoriteTeam} />}
+          {activeTab === 'analytics' && user && <div className="placeholder">Analytics (Próximamente)</div>}
         </div>
         <footer className="app-footer">
           &copy; 2026 FPC Analytics. Todos los derechos reservados.

@@ -1,16 +1,22 @@
 import React from 'react';
 import { Home, ListOrdered, Calendar, Users, BarChart2, Star } from 'lucide-react';
 import './Sidebar.css';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) => {
+  const { user } = useAuth();
+
   const menuItems = [
     { id: 'home', label: 'Home', icon: <Home size={20} /> },
     { id: 'standings', label: 'Standings', icon: <ListOrdered size={20} /> },
     { id: 'fixtures', label: 'Fixtures', icon: <Calendar size={20} /> },
     { id: 'teams', label: 'Equipos', icon: <Users size={20} /> },
-    { id: 'my_team', label: 'Mi Equipo', icon: <Star size={20} /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart2 size={20} /> },
   ];
+
+  if (user) {
+    menuItems.push({ id: 'my_team', label: 'Mi Equipo', icon: <Star size={20} /> });
+    menuItems.push({ id: 'analytics', label: 'Analytics', icon: <BarChart2 size={20} /> });
+  }
 
   const handleTabClick = (id) => {
     setActiveTab(id);
@@ -28,15 +34,17 @@ const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpe
         </h1>
       </div>
       
-      <div className="pro-analyst-badge">
-        <div className="pro-icon">
-          <BarChart2 size={16} color="black" />
+      {user && (
+        <div className="pro-analyst-badge">
+          <div className="pro-icon">
+            <BarChart2 size={16} color="black" />
+          </div>
+          <div className="pro-text">
+            <div className="pro-title">PRO ANALYST</div>
+            <div className="pro-subtitle">MODO AVANZADO ACTIVO</div>
+          </div>
         </div>
-        <div className="pro-text">
-          <div className="pro-title">PRO ANALYST</div>
-          <div className="pro-subtitle">MODO AVANZADO ACTIVO</div>
-        </div>
-      </div>
+      )}
 
       <nav className="sidebar-nav">
         <ul>

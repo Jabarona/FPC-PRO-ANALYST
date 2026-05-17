@@ -25,6 +25,15 @@ const TeamDashboard = ({ teamName }) => {
     }
   }, [teamName]);
 
+  if (!teamName) {
+    return (
+      <div className="placeholder" style={{ flexDirection: 'column' }}>
+        <h2 style={{ color: 'var(--text-primary)', marginBottom: '1rem' }}>No tienes un equipo favorito</h2>
+        <p style={{ color: 'var(--text-muted)' }}>Ve a los Ajustes o actualiza tu perfil para seleccionar un equipo favorito y ver sus métricas aquí.</p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="placeholder">
