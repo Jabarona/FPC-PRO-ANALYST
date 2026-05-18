@@ -316,6 +316,23 @@ def get_team_stats(equipo: str):
     # Estadísticas tácticas (Simuladas basándose en promedios o datos que tengamos)
     # En un escenario real, estas vendrían de columnas de xG, posesión, etc.
     # Como el DF actual es básico, generaremos algunas coherentes
+    
+    # Obtener estadio y ciudad reales desde la base de datos (matches_raw)
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT")
+    db_name = os.getenv("DB_NAME")
+    
+    connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    engine_local = create_engine(connection_string)
+    
+    stadium_query = "SELECT data_raw->'fixture'->'venue'->>'name' as stadium, data_raw->'fixture'->'venue'->>'city' as city FROM matches_raw WHERE data_raw->'teams'->'home'->>'name' = %s LIMIT 1;"
+    df_venue = pd.read_sql_query(stadium_query, engine_local, params=(equipo,))
+    
+    estadio_real = df_venue.iloc[0]['stadium'] if not df_venue.empty and pd.notna(df_venue.iloc[0]['stadium']) else "Desconocido"
+    ciudad_real = df_venue.iloc[0]['city'] if not df_venue.empty and pd.notna(df_venue.iloc[0]['city']) else "Desconocida"
+
     stats = {
         "posesion": 52,
         "pases": 78,
@@ -325,8 +342,8 @@ def get_team_stats(equipo: str):
         "faltas_recibidas": 11.4,
         "posicion_actual": 4, # Esto debería calcularse de la tabla más reciente
         "titulos": 10,
-        "ciudad": "Barranquilla, COL",
-        "estadio": "Metropolitano"
+        "ciudad": ciudad_real,
+        "estadio": estadio_real
     }
 
     return {
