@@ -383,3 +383,403 @@
     flex-direction: column;
   }
 }
+
+/* Dual Featured Matchups Grid */
+.featured-matchups-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: 100%;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.featured-match-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  transition: all var(--transition-speed);
+}
+
+.featured-match-column:hover {
+  border-color: rgba(252, 211, 77, 0.3);
+  transform: translateY(-2px);
+}
+
+.featured-match-header-sm {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--accent-yellow);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.matchup-row-featured {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+}
+
+.team-featured-sm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 35%;
+}
+
+.team-featured-sm h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.logo-featured-sm {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.vs-container-sm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  width: 30%;
+}
+
+.vs-text-sm {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--accent-yellow);
+  line-height: 1;
+}
+
+.match-time-sm {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .featured-matchups-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Semifinals Definition Section */
+.semifinals-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.semifinals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.5rem;
+}
+
+.semifinal-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-lg);
+  transition: transform var(--transition-speed), border-color var(--transition-speed);
+}
+
+.semifinal-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-yellow);
+}
+
+.semifinal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.semifinal-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.global-badge {
+  background-color: rgba(252, 211, 77, 0.1);
+  border: 1px solid rgba(252, 211, 77, 0.25);
+  color: var(--accent-yellow);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.finalist-badge {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+}
+
+.match-scores-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.015);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.match-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.match-score-team {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.match-score-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.match-score-values {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.match-score-val {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 20px;
+  text-align: center;
+}
+
+.match-score-val.final-score {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  background-color: rgba(252, 211, 77, 0.1);
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  width: 24px;
+}
+
+.match-status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.match-status-badge.ft {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-status-badge.ns {
+  background-color: rgba(252, 211, 77, 0.1);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(252, 211, 77, 0.2);
+}
+
+.analytics-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.analytics-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.analytics-icon-wrapper {
+  background-color: rgba(252, 211, 77, 0.1);
+  padding: 0.4rem;
+  border-radius: 50%;
+  color: var(--accent-yellow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.analytics-text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.analytics-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analytics-content {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Grand Final Card Styling */
+.grand-final-card {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(252, 211, 77, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%), var(--bg-card);
+  border: 2px dashed rgba(252, 211, 77, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  animation: pulseCard 4s infinite alternate;
+}
+
+@keyframes pulseCard {
+  0% { border-color: rgba(252, 211, 77, 0.2); }
+  100% { border-color: rgba(252, 211, 77, 0.5); }
+}
+
+.grand-final-trophy-wrapper {
+  color: var(--accent-yellow);
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+.grand-final-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.grand-final-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+.grand-final-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5rem;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.finalist-team {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 40%;
+  justify-content: flex-end;
+}
+
+.finalist-team.team-right {
+  justify-content: flex-start;
+  width: 40%;
+}
+
+.finalist-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.finalist-vs {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--accent-yellow);
+}
+
+.placeholder-finalist {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-style: italic;
+  border: 1px dashed var(--border-color);
+  padding: 0.5rem 1.5rem;
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.01);
+  width: 40%;
+}
+
+@media (max-width: 768px) {
+  .semifinals-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .grand-final-matchup {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .finalist-team, .finalist-team.team-right, .placeholder-finalist {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
