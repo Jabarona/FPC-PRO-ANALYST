@@ -1,6 +1,7 @@
 # main.py
 import os
 import pandas as pd
+import unicodedata
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine
@@ -72,8 +73,59 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def normalize_team_global(name):
+    if not name:
+        return ""
+    return "".join(c for c in unicodedata.normalize('NFD', str(name)) if unicodedata.category(c) != 'Mn').lower().strip()
+
+# Mapeo de logos para heredar logos reales cuando vengan vacíos/nulos (como en el año 2026)
+LOGO_FALLBACKS = {
+    "aguilas doradas": "https://media.api-sports.io/football/teams/1144.png",
+    "alianza fc": "https://media.api-sports.io/football/teams/1141.png",
+    "alianza valledupar": "https://media.api-sports.io/football/teams/1141.png",
+    "america de cali": "https://media.api-sports.io/football/teams/1138.png",
+    "america": "https://media.api-sports.io/football/teams/1138.png",
+    "atletico nacional": "https://media.api-sports.io/football/teams/1137.png",
+    "atl. nacional": "https://media.api-sports.io/football/teams/1137.png",
+    "bucaramanga": "https://media.api-sports.io/football/teams/1131.png",
+    "chico": "https://media.api-sports.io/football/teams/1132.png",
+    "boyaca chico": "https://media.api-sports.io/football/teams/1132.png",
+    "boyaca chico": "https://media.api-sports.io/football/teams/1132.png",
+    "cucuta": "https://media.api-sports.io/football/teams/1470.png",
+    "cucuta deportivo": "https://media.api-sports.io/football/teams/1470.png",
+    "cúcuta": "https://media.api-sports.io/football/teams/1470.png",
+    "cúcuta deportivo": "https://media.api-sports.io/football/teams/1470.png",
+    "deportes tolima": "https://media.api-sports.io/football/teams/1142.png",
+    "tolima": "https://media.api-sports.io/football/teams/1142.png",
+    "deportivo cali": "https://media.api-sports.io/football/teams/1127.png",
+    "dep. cali": "https://media.api-sports.io/football/teams/1127.png",
+    "deportivo pasto": "https://media.api-sports.io/football/teams/1126.png",
+    "dep. pasto": "https://media.api-sports.io/football/teams/1126.png",
+    "deportivo pereira": "https://media.api-sports.io/football/teams/1462.png",
+    "envigado": "https://media.api-sports.io/football/teams/1129.png",
+    "fortaleza fc": "https://media.api-sports.io/football/teams/1147.png",
+    "fortaleza": "https://media.api-sports.io/football/teams/1147.png",
+    "huila": "https://media.api-sports.io/football/teams/1130.png",
+    "independiente medellin": "https://media.api-sports.io/football/teams/1128.png",
+    "ind. medellin": "https://media.api-sports.io/football/teams/1128.png",
+    "ind. medellín": "https://media.api-sports.io/football/teams/1128.png",
+    "inter palmira": "https://media.api-sports.io/football/teams/1146.png",
+    "internacional de bogota": "https://media.api-sports.io/football/teams/1134.png",
+    "inter de bogota": "https://media.api-sports.io/football/teams/1134.png",
+    "inter de bogotá": "https://media.api-sports.io/football/teams/1134.png",
+    "jaguares": "https://media.api-sports.io/football/teams/1133.png",
+    "junior": "https://media.api-sports.io/football/teams/1135.png",
+    "junior barranquilla": "https://media.api-sports.io/football/teams/1135.png",
+    "llaneros": "https://media.api-sports.io/football/teams/1464.png",
+    "millonarios": "https://media.api-sports.io/football/teams/1125.png",
+    "once caldas": "https://media.api-sports.io/football/teams/1136.png",
+    "patriotas": "https://media.api-sports.io/football/teams/1140.png",
+    "santa fe": "https://media.api-sports.io/football/teams/1139.png",
+    "union magdalena": "https://media.api-sports.io/football/teams/1465.png"
+}
+
 def get_db_dataframe():
-    """Se conecta a PostgreSQL y trae la vista con los datos unificados y limpios."""
+    """Se conecta a PostgreSQL y trae la vista con los datos unificados y limpios, heredando logos si están vacíos."""
     db_user = os.getenv("DB_USER")
     db_password = os.getenv("DB_PASSWORD")
     db_host = os.getenv("DB_HOST")
@@ -84,6 +136,17 @@ def get_db_dataframe():
     engine = create_engine(connection_string)
     
     df = pd.read_sql_query("SELECT * FROM v_fpc_matches;", engine)
+    
+    # Rellenar los logos vacíos usando el mapeo de fallbacks
+    def get_fallback_logo(team_name, current_logo):
+        if current_logo and pd.notna(current_logo) and str(current_logo).strip() != "" and str(current_logo) != "None":
+            return current_logo
+        normalized = normalize_team_global(team_name)
+        return LOGO_FALLBACKS.get(normalized, current_logo)
+        
+    df['logo_local'] = df.apply(lambda row: get_fallback_logo(row['equipo_local'], row['logo_local']), axis=1)
+    df['logo_visitante'] = df.apply(lambda row: get_fallback_logo(row['equipo_visitante'], row['logo_visitante']), axis=1)
+    
     return df.drop_duplicates(subset=['match_id']).copy()
 
 def build_table_stats(df, season, valid_rounds):
@@ -352,3 +415,127 @@ def get_team_stats(equipo: str):
         "recent_matches": recent_matches,
         "stats": stats
     }
+
+@app.get("/api/v1/tabla/fases-eliminatorias/{anio}/{torneo}/{fase}")
+def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
+    """
+    Retorna los emparejamientos y resultados de fases eliminatorias (Cuartos, Semifinal, Final).
+    Ejemplo: /api/v1/tabla/fases-eliminatorias/2026/apertura/cuartos
+    """
+    torneo_cap = torneo.strip().capitalize()
+    fase_lower = fase.strip().lower()
+    
+    if torneo_cap not in ['Apertura', 'Clausura'] or fase_lower not in ['cuartos', 'semifinal', 'final']:
+        raise HTTPException(status_code=400, detail="Parámetros inválidos. Ejemplo: /2026/apertura/cuartos")
+        
+    df = get_db_dataframe()
+    df_year = df[df['season'] == anio].copy()
+    
+    # Determinar el filtro de jornada
+    if fase_lower == 'cuartos':
+        round_filter = 'Cuartos'
+    elif fase_lower == 'semifinal':
+        round_filter = 'Semifinal'
+    else:
+        round_filter = 'Final'
+        
+    # Filtrar partidos de la fase seleccionada
+    # Para 'final', queremos que coincida con 'Final' pero NO con 'Semifinal' o 'Cuartos'
+    if fase_lower == 'final':
+        df_filtered = df_year[
+            df_year['jornada'].str.contains('Final', case=False, na=False) & 
+            ~df_year['jornada'].str.contains('Semifinal', case=False, na=False) &
+            ~df_year['jornada'].str.contains('Cuartos', case=False, na=False)
+        ].copy()
+    else:
+        df_filtered = df_year[df_year['jornada'].str.contains(round_filter, case=False, na=False)].copy()
+        
+    if df_filtered.empty:
+        return {"anio": anio, "torneo": torneo, "fase": fase, "parejas": []}
+        
+    # Agrupar por enfrentamientos
+    # Cada enfrentamiento consta de Ida y Vuelta entre los mismos dos equipos
+    pairings = {}
+    
+    for _, row in df_filtered.iterrows():
+        team_a = row['equipo_local']
+        team_b = row['equipo_visitante']
+        logo_a = row['logo_local']
+        logo_b = row['logo_visitante']
+        
+        # Clave única para el emparejamiento (alfabética)
+        pairing_key = tuple(sorted([team_a, team_b]))
+        
+        if pairing_key not in pairings:
+            pairings[pairing_key] = {
+                "equipo_1": pairing_key[0],
+                "logo_1": logo_a if pairing_key[0] == team_a else logo_b,
+                "equipo_2": pairing_key[1],
+                "logo_2": logo_b if pairing_key[0] == team_a else logo_a,
+                "ida": None,
+                "vuelta": None,
+                "global_1": 0,
+                "global_2": 0,
+                "ganador": None
+            }
+            
+        p = pairings[pairing_key]
+        
+        # Determinar si es partido de Ida o Vuelta
+        jornada = row['jornada'].lower()
+        match_info = {
+            "local": team_a,
+            "logo_local": logo_a,
+            "visitante": team_b,
+            "logo_visitante": logo_b,
+            "goles_local": int(row['goles_local']) if pd.notna(row['goles_local']) else None,
+            "goles_visitante": int(row['goles_visitante']) if pd.notna(row['goles_visitante']) else None
+        }
+        
+        if 'ida' in jornada:
+            p['ida'] = match_info
+        elif 'vuelta' in jornada:
+            p['vuelta'] = match_info
+            
+    # Calcular marcadores globales y definir ganadores
+    for p in pairings.values():
+        g1 = 0
+        g2 = 0
+        played_any = False
+        
+        # Sumar goles para el equipo 1 y 2
+        for leg in ['ida', 'vuelta']:
+            leg_data = p[leg]
+            if leg_data and leg_data['goles_local'] is not None and leg_data['goles_visitante'] is not None:
+                played_any = True
+                # Si el local de este partido es equipo_1
+                if leg_data['local'] == p['equipo_1']:
+                    g1 += leg_data['goles_local']
+                    g2 += leg_data['goles_visitante']
+                else:
+                    g2 += leg_data['goles_local']
+                    g1 += leg_data['goles_visitante']
+                    
+        if played_any:
+            p['global_1'] = g1
+            p['global_2'] = g2
+            
+            # Si se ha completado la vuelta (o ya hay marcador final global)
+            if p['vuelta'] and p['vuelta']['goles_local'] is not None:
+                if g1 > g2:
+                    p['ganador'] = p['equipo_1']
+                elif g2 > g1:
+                    p['ganador'] = p['equipo_2']
+                else:
+                    p['ganador'] = "Empate"
+        else:
+            p['global_1'] = None
+            p['global_2'] = None
+            
+    return {
+        "anio": anio,
+        "torneo": torneo,
+        "fase": fase,
+        "parejas": list(pairings.values())
+    }
+

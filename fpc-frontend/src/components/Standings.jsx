@@ -19,10 +19,11 @@ const mockStandings = [
 
 const Standings = () => {
   const [seasonType, setSeasonType] = useState('Apertura');
-  const [year, setYear] = useState('2022');
-  const [fase, setFase] = useState('Regular'); // 'Regular' o 'Cuadrangulares'
+  const [year, setYear] = useState('2026'); // Start with 2026 since it has the new data
+  const [fase, setFase] = useState('Regular'); // 'Regular', 'Cuadrangulares', 'Cuartos', 'Semifinal', 'Final'
   const [grupo, setGrupo] = useState('A'); // 'A' o 'B'
   const [standings, setStandings] = useState([]);
+  const [knockoutPairs, setKnockoutPairs] = useState([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('HACE 5 MIN');
@@ -34,14 +35,26 @@ const Standings = () => {
       let url = '';
       if (fase === 'Regular') {
         url = `http://localhost:8000/api/v1/tabla/fase-regular/${year}/${seasonType.toLowerCase()}`;
+      } else if (['Cuartos', 'Semifinal', 'Final'].includes(fase)) {
+        url = `http://localhost:8000/api/v1/tabla/fases-eliminatorias/${year}/${seasonType.toLowerCase()}/${fase.toLowerCase()}`;
       } else {
         url = `http://localhost:8000/api/v1/tabla/cuadrangulares/${year}/${seasonType.toLowerCase()}/${grupo.toLowerCase()}`;
       }
       const response = await axios.get(url);
       
-      if (response.data && response.data.tabla) {
-        setStandings(response.data.tabla);
+      if (fase === 'Regular' || fase === 'Cuadrangulares') {
+        if (response.data && response.data.tabla) {
+          setStandings(response.data.tabla);
+        } else {
+          setStandings([]);
+        }
+        setKnockoutPairs([]);
       } else {
+        if (response.data && response.data.parejas) {
+          setKnockoutPairs(response.data.parejas);
+        } else {
+          setKnockoutPairs([]);
+        }
         setStandings([]);
       }
     } catch (error) {
@@ -52,12 +65,22 @@ const Standings = () => {
       } else {
         setStandings([]);
       }
+      setKnockoutPairs([]);
     } finally {
       setIsUpdating(false);
       setIsLoading(false);
       setLastUpdate('AHORA');
     }
   };
+
+  // Salvaguarda: Resetea la fase activa si cambia el año a uno incompatible
+  useEffect(() => {
+    if (year === '2026' && fase === 'Cuadrangulares') {
+      setFase('Regular');
+    } else if (year !== '2026' && ['Cuartos', 'Semifinal', 'Final'].includes(fase)) {
+      setFase('Regular');
+    }
+  }, [year]);
 
   useEffect(() => {
     fetchStandings();
@@ -73,7 +96,7 @@ const Standings = () => {
         <div>
           <h2 className="page-title">Tabla de Posiciones</h2>
           <p className="page-subtitle">
-            Temporada {year} - {seasonType} {fase === 'Cuadrangulares' ? `➔ Grupo ${grupo}` : '➔ Fase Regular'} | Liga BetPlay Dimayor
+            Temporada {year} - {seasonType} {['Cuartos', 'Semifinal', 'Final'].includes(fase) ? `➔ ${fase === 'Cuartos' ? 'Cuartos de Final' : fase}` : (fase === 'Cuadrangulares' ? `➔ Grupo ${grupo}` : '➔ Fase Regular')} | Liga BetPlay Dimayor
           </p>
         </div>
       </div>
@@ -104,12 +127,35 @@ const Standings = () => {
             >
               Fase Regular
             </button>
-            <button
-              className={`tab ${fase === 'Cuadrangulares' ? 'active' : ''}`}
-              onClick={() => setFase('Cuadrangulares')}
-            >
-              Cuadrangulares
-            </button>
+            {year === '2026' ? (
+              <>
+                <button
+                  className={`tab ${fase === 'Cuartos' ? 'active' : ''}`}
+                  onClick={() => setFase('Cuartos')}
+                >
+                  Cuartos de Final
+                </button>
+                <button
+                  className={`tab ${fase === 'Semifinal' ? 'active' : ''}`}
+                  onClick={() => setFase('Semifinal')}
+                >
+                  Semifinal
+                </button>
+                <button
+                  className={`tab ${fase === 'Final' ? 'active' : ''}`}
+                  onClick={() => setFase('Final')}
+                >
+                  Final
+                </button>
+              </>
+            ) : (
+              <button
+                className={`tab ${fase === 'Cuadrangulares' ? 'active' : ''}`}
+                onClick={() => setFase('Cuadrangulares')}
+              >
+                Cuadrangulares
+              </button>
+            )}
           </div>
 
           {/* Selector de Grupo (solo si es Cuadrangulares) */}
@@ -150,69 +196,158 @@ const Standings = () => {
         </div>
       </div>
 
-      <div className="table-wrapper">
-        <table className="standings-table">
-          <thead>
-            <tr>
-              <th className="col-rank">#</th>
-              <th className="col-team">EQUIPO</th>
-              <th>PJ</th>
-              <th>PG</th>
-              <th>PE</th>
-              <th>PP</th>
-              <th>GF</th>
-              <th>GC</th>
-              <th>DG</th>
-              <th className="col-pts">PTS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <div className="loading-spinner-container">
-                    <RefreshCw className="spin" size={24} style={{ marginBottom: '0.5rem', color: 'var(--accent-yellow)' }} />
-                    <p>Cargando posiciones oficiales...</p>
-                  </div>
-                </td>
-              </tr>
-            ) : standings.length === 0 ? (
-              <tr>
-                <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No hay datos registrados de cuadrangulares para {seasonType} {year} en el {fase === 'Cuadrangulares' ? `Grupo ${grupo}` : 'Fase Regular'}.
-                </td>
-              </tr>
-            ) : standings.map((team, index) => {
-              // En Fase Regular clasifican los 8 primeros (index < 8)
-              // En Cuadrangulares clasifica solo el puntero de cada grupo (index === 0)
-              const isQualified = fase === 'Regular' ? index < 8 : index === 0;
+      {['Cuartos', 'Semifinal', 'Final'].includes(fase) ? (
+        <div className="knockout-grid animate-fade-in">
+          {isLoading ? (
+            <div className="loading-spinner-container" style={{ padding: '3rem', gridColumn: '1/-1' }}>
+              <RefreshCw className="spin" size={24} style={{ marginBottom: '0.5rem', color: 'var(--accent-yellow)' }} />
+              <p>Cargando enfrentamientos oficiales...</p>
+            </div>
+          ) : knockoutPairs.length === 0 ? (
+            <div className="no-data-card" style={{ gridColumn: '1/-1' }}>
+              No hay datos registrados de {fase === 'Cuartos' ? 'Cuartos de Final' : fase} para {seasonType} {year} en la base de datos aún.
+            </div>
+          ) : (
+            knockoutPairs.map((pair, index) => {
+              const showWinner = pair.ganador && pair.ganador !== "Empate";
+              
+              // Helper to safely fetch leg scores
+              const getLegScore = (legData, teamName) => {
+                if (!legData || legData.goles_local === null) return '-';
+                return legData.local === teamName ? legData.goles_local : legData.goles_visitante;
+              };
+
               return (
-                <tr key={team.equipo || team.name} className={isQualified ? 'qualified' : ''}>
-                  <td className="col-rank">{String(team.posicion || team.rank || index + 1).padStart(2, '0')}</td>
-                  <td className="col-team">
-                    <div className="team-info">
-                      <img 
-                        src={team.logo || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
-                        alt={`Escudo de ${team.equipo || team.name}`}
-                        className="team-logo-img" 
-                      />
-                      <span className="team-name">{team.equipo || team.name}</span>
+                <div key={index} className="knockout-card">
+                  <div className="knockout-card-header">
+                    <span>Llave {index + 1}</span>
+                    {pair.ganador && pair.ganador !== "Empate" && (
+                      <span className="winner-badge">
+                        GANADOR: {pair.ganador}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="teams-vs-container">
+                    {/* Equipo 1 */}
+                    <div className={`team-row-knockout ${showWinner && pair.ganador === pair.equipo_1 ? 'team-winner' : ''} ${showWinner && pair.ganador !== pair.equipo_1 ? 'team-loser' : ''}`}>
+                      <div className="team-meta">
+                        <img 
+                          src={pair.logo_1 || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
+                          alt={pair.equipo_1} 
+                          className="knockout-logo-img" 
+                          onError={(e) => {
+                            e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png";
+                          }}
+                        />
+                        <span className="knockout-team-name">{pair.equipo_1}</span>
+                      </div>
+                      <div className="score-meta">
+                        <span className="leg-score">{getLegScore(pair.ida, pair.equipo_1)}</span>
+                        <span className="leg-score">{getLegScore(pair.vuelta, pair.equipo_1)}</span>
+                        <span className="total-score">{pair.global_1 !== null ? pair.global_1 : '-'}</span>
+                      </div>
+                    </div>
+
+                    {/* Divisor */}
+                    <div className="knockout-divider"></div>
+
+                    {/* Equipo 2 */}
+                    <div className={`team-row-knockout ${showWinner && pair.ganador === pair.equipo_2 ? 'team-winner' : ''} ${showWinner && pair.ganador !== pair.equipo_2 ? 'team-loser' : ''}`}>
+                      <div className="team-meta">
+                        <img 
+                          src={pair.logo_2 || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
+                          alt={pair.equipo_2} 
+                          className="knockout-logo-img" 
+                          onError={(e) => {
+                            e.target.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png";
+                          }}
+                        />
+                        <span className="knockout-team-name">{pair.equipo_2}</span>
+                      </div>
+                      <div className="score-meta">
+                        <span className="leg-score">{getLegScore(pair.ida, pair.equipo_2)}</span>
+                        <span className="leg-score">{getLegScore(pair.vuelta, pair.equipo_2)}</span>
+                        <span className="total-score">{pair.global_2 !== null ? pair.global_2 : '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="legs-legend">
+                    <span>IDA</span>
+                    <span>VUELTA</span>
+                    <span className="global-legend">GLOBAL</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        <div className="table-wrapper">
+          <table className="standings-table">
+            <thead>
+              <tr>
+                <th className="col-rank">#</th>
+                <th className="col-team">EQUIPO</th>
+                <th>PJ</th>
+                <th>PG</th>
+                <th>PE</th>
+                <th>PP</th>
+                <th>GF</th>
+                <th>GC</th>
+                <th>DG</th>
+                <th className="col-pts">PTS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <div className="loading-spinner-container">
+                      <RefreshCw className="spin" size={24} style={{ marginBottom: '0.5rem', color: 'var(--accent-yellow)' }} />
+                      <p>Cargando posiciones oficiales...</p>
                     </div>
                   </td>
-                  <td>{team.pj || team.played}</td>
-                  <td>{team.pg || team.won || 0}</td>
-                  <td>{team.pe || team.drawn || 0}</td>
-                  <td>{team.pp || team.lost || 0}</td>
-                  <td>{team.gf}</td>
-                  <td>{team.gc || team.ga}</td>
-                  <td>{team.dg >= 0 ? `+${team.dg}` : team.dg}</td>
-                  <td className="col-pts">{team.pts || team.points}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ) : standings.length === 0 ? (
+                <tr>
+                  <td colSpan="10" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No hay datos registrados de cuadrangulares para {seasonType} {year} en el {fase === 'Cuadrangulares' ? `Grupo ${grupo}` : 'Fase Regular'}.
+                  </td>
+                </tr>
+              ) : standings.map((team, index) => {
+                // En Fase Regular clasifican los 8 primeros (index < 8)
+                // En Cuadrangulares clasifica solo el puntero de cada grupo (index === 0)
+                const isQualified = fase === 'Regular' ? index < 8 : index === 0;
+                return (
+                  <tr key={team.equipo || team.name} className={isQualified ? 'qualified' : ''}>
+                    <td className="col-rank">{String(team.posicion || team.rank || index + 1).padStart(2, '0')}</td>
+                    <td className="col-team">
+                      <div className="team-info">
+                        <img 
+                          src={team.logo || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
+                          alt={`Escudo de ${team.equipo || team.name}`}
+                          className="team-logo-img" 
+                        />
+                        <span className="team-name">{team.equipo || team.name}</span>
+                      </div>
+                    </td>
+                    <td>{team.pj || team.played}</td>
+                    <td>{team.pg || team.won || 0}</td>
+                    <td>{team.pe || team.drawn || 0}</td>
+                    <td>{team.pp || team.lost || 0}</td>
+                    <td>{team.gf}</td>
+                    <td>{team.gc || team.ga}</td>
+                    <td>{team.dg >= 0 ? `+${team.dg}` : team.dg}</td>
+                    <td className="col-pts">{team.pts || team.points}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
