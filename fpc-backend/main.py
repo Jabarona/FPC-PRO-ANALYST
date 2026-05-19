@@ -337,13 +337,42 @@ def get_equipos():
     
     return {"equipos": equipos_list}
 
+TEAM_ALIASES_MAP = {
+    "America de Cali": ["América", "America de Cali"],
+    "América": ["América", "America de Cali"],
+    "Atlético Nacional": ["Atl. Nacional", "Atletico Nacional"],
+    "Atletico Nacional": ["Atl. Nacional", "Atletico Nacional"],
+    "Atl. Nacional": ["Atl. Nacional", "Atletico Nacional"],
+    "Deportivo Cali": ["Dep. Cali", "Deportivo Cali"],
+    "Dep. Cali": ["Dep. Cali", "Deportivo Cali"],
+    "Deportes Tolima": ["Tolima", "Deportes Tolima"],
+    "Tolima": ["Tolima", "Deportes Tolima"],
+    "Deportivo Pasto": ["Dep. Pasto", "Deportivo Pasto"],
+    "Dep. Pasto": ["Dep. Pasto", "Deportivo Pasto"],
+    "Independiente Medellin": ["Ind. Medellín", "Independiente Medellin"],
+    "Ind. Medellín": ["Ind. Medellín", "Independiente Medellin"],
+    "Junior": ["Junior Barranquilla", "Junior"],
+    "Junior Barranquilla": ["Junior Barranquilla", "Junior"],
+    "Boyacá Chicó": ["Boyacá Chicó", "Chico"],
+    "Chico": ["Boyacá Chicó", "Chico"],
+    "Fortaleza": ["Fortaleza", "Fortaleza FC"],
+    "Fortaleza FC": ["Fortaleza", "Fortaleza FC"],
+    "Alianza Valledupar": ["Alianza Valledupar", "Alianza FC"],
+    "Alianza FC": ["Alianza Valledupar", "Alianza FC"],
+    "Inter de Bogotá": ["Inter de Bogotá", "Internacional de Bogota"],
+    "Internacional de Bogota": ["Inter de Bogotá", "Internacional de Bogota"]
+}
+
 @app.get("/api/v1/equipos/{equipo}/stats")
 def get_team_stats(equipo: str):
     """Retorna estadísticas avanzadas y estado de forma de un equipo específico."""
     df = get_db_dataframe()
     
-    # Filtrar partidos donde participó el equipo
-    df_team = df[(df['equipo_local'] == equipo) | (df['equipo_visitante'] == equipo)].copy()
+    # Obtener aliases del equipo para buscar en todas las temporadas
+    aliases = TEAM_ALIASES_MAP.get(equipo, [equipo])
+    
+    # Filtrar partidos donde participó el equipo (usando cualquier alias)
+    df_team = df[(df['equipo_local'].isin(aliases)) | (df['equipo_visitante'].isin(aliases))].copy()
     
     if df_team.empty:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
@@ -360,8 +389,9 @@ def get_team_stats(equipo: str):
     form = []
     recent_matches = []
     for _, row in df_played.head(5).iterrows():
-        is_home = row['equipo_local'] == equipo
+        is_home = row['equipo_local'] in aliases
         opponent = row['equipo_visitante'] if is_home else row['equipo_local']
+        opponent_logo = row.get('logo_visitante', '') if is_home else row.get('logo_local', '')
         g_local, g_visitante = int(row['goles_local_num']), int(row['goles_visitante_num'])
         
         res = ""
@@ -378,24 +408,38 @@ def get_team_stats(equipo: str):
         form.append(res)
         recent_matches.append({
             "opponent": opponent,
+            "opponent_logo": opponent_logo,
             "result": f"{g_local} - {g_visitante}",
             "label": label,
-            "status": "Final"
+            "status": "Final",
+            "season": int(row['season'])
         })
 
-    # Obtener estadio y ciudad reales desde matches_raw usando el match_id
-    # del último partido de local (así evitamos problemas de nombres distintos)
+    # Obtener el logo del equipo (preferir el alias de 2026)
+    logo_equipo = ""
+    df_2026_home = df_team[(df_team['season'] == 2026) & (df_team['equipo_local'].isin(aliases))]
+    df_2026_away = df_team[(df_team['season'] == 2026) & (df_team['equipo_visitante'].isin(aliases))]
+    if not df_2026_home.empty:
+        logo_equipo = df_2026_home.iloc[0].get('logo_local', '')
+    elif not df_2026_away.empty:
+        logo_equipo = df_2026_away.iloc[0].get('logo_visitante', '')
+    
+    if not logo_equipo:
+        # Fallback a cualquier temporada
+        df_as_home = df_team[df_team['equipo_local'].isin(aliases)]
+        if not df_as_home.empty:
+            logo_equipo = df_as_home.iloc[0].get('logo_local', '')
+
+    # Obtener estadio y ciudad reales desde matches_raw
     db_user = os.getenv("DB_USER")
     db_password = os.getenv("DB_PASSWORD")
     db_host = os.getenv("DB_HOST")
     db_port = os.getenv("DB_PORT")
     db_name = os.getenv("DB_NAME")
-    
     connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     engine_local = create_engine(connection_string)
     
-    # Buscar el estadio por match_id del último partido de local jugado
-    df_home = df_played[df_played['equipo_local'] == equipo]
+    df_home = df_played[df_played['equipo_local'].isin(aliases)]
     estadio_real = "Desconocido"
     ciudad_real = "Desconocida"
     if not df_home.empty:
@@ -406,21 +450,111 @@ def get_team_stats(equipo: str):
             estadio_real = df_venue.iloc[0]['stadium'] if pd.notna(df_venue.iloc[0]['stadium']) else "Desconocido"
             ciudad_real = df_venue.iloc[0]['city'] if pd.notna(df_venue.iloc[0]['city']) else "Desconocida"
 
+    # ====== CALCULAR POSICIÓN REAL EN LA TABLA 2026 APERTURA ======
+    valid_rounds_2026 = [f"Apertura - {i}" for i in range(1, 21)]
+    tabla_2026 = build_table_stats(df, 2026, valid_rounds_2026)
+    posicion_actual = 0
+    pts_actuales = 0
+    pj_total = 0
+    for entry in tabla_2026:
+        if entry['equipo'] in aliases:
+            posicion_actual = entry['posicion']
+            pts_actuales = entry['pts']
+            pj_total = entry['pj']
+            break
+
+    # ====== ESTADÍSTICAS REALES DE RENDIMIENTO 2026 APERTURA ======
+    df_2026 = df_played[(df_played['season'] == 2026) & ((df_played['equipo_local'].isin(aliases)) | (df_played['equipo_visitante'].isin(aliases)))].copy()
+    wins_2026 = 0
+    draws_2026 = 0
+    losses_2026 = 0
+    gf_2026 = 0
+    gc_2026 = 0
+    for _, row in df_2026.iterrows():
+        is_home = row['equipo_local'] in aliases
+        g_local, g_away = int(row['goles_local_num']), int(row['goles_visitante_num'])
+        gf_2026 += g_local if is_home else g_away
+        gc_2026 += g_away if is_home else g_local
+        if g_local == g_away:
+            draws_2026 += 1
+        elif (is_home and g_local > g_away) or (not is_home and g_away > g_local):
+            wins_2026 += 1
+        else:
+            losses_2026 += 1
+    
+    total_2026 = wins_2026 + draws_2026 + losses_2026
+    win_pct = round((wins_2026 / total_2026 * 100), 1) if total_2026 > 0 else 0
+    draw_pct = round((draws_2026 / total_2026 * 100), 1) if total_2026 > 0 else 0
+    loss_pct = round((losses_2026 / total_2026 * 100), 1) if total_2026 > 0 else 0
+    gf_avg = round(gf_2026 / total_2026, 1) if total_2026 > 0 else 0
+    gc_avg = round(gc_2026 / total_2026, 1) if total_2026 > 0 else 0
+
+    # ====== RENDIMIENTO HISTÓRICO 2022-2026 ======
+    historical_positions = {}
+    for year in [2022, 2023, 2024, 2025, 2026]:
+        for torneo_name in ["Apertura", "Clausura"]:
+            rounds = [f"{torneo_name} - {i}" for i in range(1, 21)]
+            tabla = build_table_stats(df, year, rounds)
+            for entry in tabla:
+                if entry['equipo'] in aliases:
+                    key = f"{year} {torneo_name}"
+                    historical_positions[key] = {
+                        "posicion": entry['posicion'],
+                        "pts": entry['pts'],
+                        "pj": entry['pj'],
+                        "pg": entry['pg'],
+                        "dg": entry['dg']
+                    }
+                    break
+    
+    # Promediar posiciones históricas para calcular rendimiento global
+    if historical_positions:
+        all_pos = [v['posicion'] for v in historical_positions.values()]
+        avg_position = round(sum(all_pos) / len(all_pos), 1)
+        best_position = min(all_pos)
+        worst_position = max(all_pos)
+        top4_count = sum(1 for p in all_pos if p <= 4)
+        top8_count = sum(1 for p in all_pos if p <= 8)
+        total_torneos = len(all_pos)
+        top4_pct = round(top4_count / total_torneos * 100, 1) if total_torneos > 0 else 0
+        top8_pct = round(top8_count / total_torneos * 100, 1) if total_torneos > 0 else 0
+    else:
+        avg_position = 0
+        best_position = 0
+        worst_position = 0
+        top4_pct = 0
+        top8_pct = 0
+
     stats = {
-        "posesion": 52,
-        "pases": 78,
-        "efectividad": 35,
-        "duelos": 58,
-        "remates_promedio": 12.8,
-        "faltas_recibidas": 11.4,
-        "posicion_actual": 4,
-        "titulos": 10,
         "ciudad": ciudad_real,
-        "estadio": estadio_real
+        "estadio": estadio_real,
+        "posicion_actual": posicion_actual,
+        "pts_actuales": pts_actuales,
+        "pj_total": pj_total,
+        # Rendimiento 2026
+        "wins": wins_2026,
+        "draws": draws_2026,
+        "losses": losses_2026,
+        "win_pct": win_pct,
+        "draw_pct": draw_pct,
+        "loss_pct": loss_pct,
+        "goles_favor": gf_2026,
+        "goles_contra": gc_2026,
+        "gf_avg": gf_avg,
+        "gc_avg": gc_avg,
+        "dg": gf_2026 - gc_2026,
+        # Rendimiento histórico
+        "avg_position": avg_position,
+        "best_position": best_position,
+        "worst_position": worst_position,
+        "top4_pct": top4_pct,
+        "top8_pct": top8_pct,
+        "historical": historical_positions
     }
 
     return {
         "equipo": equipo,
+        "logo": logo_equipo,
         "form": form[::-1],
         "recent_matches": recent_matches,
         "stats": stats
