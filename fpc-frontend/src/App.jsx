@@ -5,19 +5,37 @@ import Standings from './components/Standings';
 import Home from './components/Home';
 import TeamDashboard from './components/TeamDashboard';
 import TeamsList from './components/TeamsList';
+import Landing from './components/Landing';
 import './App.css';
 import { useAuth } from './context/AuthContext';
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user } = useAuth();
+  const [showLanding, setShowLanding] = useState(true);
+  const { user, loading } = useAuth();
 
   const favoriteTeam = user?.equipo_favorito || null;
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // Si el usuario ya está logueado (tiene token), saltar la landing
+  useEffect(() => {
+    if (!loading && user) {
+      setShowLanding(false);
+    }
+  }, [user, loading]);
+
+  const handleEnterApp = () => {
+    setShowLanding(false);
+  };
+
+  // Mostrar la landing page como portal de entrada
+  if (showLanding && !user) {
+    return <Landing onEnterApp={handleEnterApp} />;
+  }
 
   return (
     <div className="app-container">
