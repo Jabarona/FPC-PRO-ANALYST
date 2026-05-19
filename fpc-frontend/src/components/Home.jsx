@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Activity, Star, ChevronRight, TrendingUp, Shield, History, Trophy, Sparkles } from 'lucide-react';
+import { Activity, ChevronRight, Shield, History, Trophy } from 'lucide-react';
 import './Home.css';
 
 const Home = () => {
-  const [topTeams, setTopTeams] = useState([]);
   const [semifinals, setSemifinals] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [semisLoading, setSemisLoading] = useState(true);
 
   // Fallback de semifinales por si los datos no están cargados completamente en la DB
@@ -64,19 +62,6 @@ const Home = () => {
   ];
 
   useEffect(() => {
-    const fetchTop5 = async () => {
-      try {
-        const res = await axios.get('http://localhost:8000/api/v1/tabla/fase-regular/2026/apertura');
-        if (res.data && res.data.tabla) {
-          setTopTeams(res.data.tabla.slice(0, 5));
-        }
-      } catch (err) {
-        console.error("Error fetching top 5", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     const fetchSemifinals = async () => {
       try {
         const res = await axios.get('http://localhost:8000/api/v1/tabla/fases-eliminatorias/2026/apertura/semifinal');
@@ -93,7 +78,6 @@ const Home = () => {
       }
     };
 
-    fetchTop5();
     fetchSemifinals();
   }, []);
 
@@ -217,7 +201,7 @@ const Home = () => {
           </div>
 
           <div className="featured-matchups-grid">
-            {/* Llave 1 */}
+            {/* Llave 1: Nacional vs Tolima */}
             <div className="featured-match-column">
               <span className="featured-match-header-sm">Llave 1 - Definición</span>
               <div className="matchup-row-featured">
@@ -230,8 +214,11 @@ const Home = () => {
                   <span className="match-time-sm" style={{ fontWeight: '700', color: 'var(--accent-yellow)', fontSize: '0.6rem' }}>
                     Atanasio Girardot
                   </span>
+                  <span className="match-time-sm" style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                    📅 Mié 21 Mayo, 20:00
+                  </span>
                   <span className="match-time-sm" style={{ fontSize: '0.55rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-                    Ida: {match1.ida ? `${match1.ida.goles_local} - ${match1.ida.goles_visitante}` : '0 - 1'} (Tol - Nac)
+                    Ida: {match1.ida ? `${match1.ida.goles_local} - ${match1.ida.goles_visitante}` : '0 - 1'} ({match1.ida ? match1.ida.local : match1.equipo_2} - {match1.ida ? match1.ida.visitante : match1.equipo_1})
                   </span>
                 </div>
                 <div className="team-featured-sm">
@@ -241,7 +228,7 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Llave 2 */}
+            {/* Llave 2: Junior vs Santa Fe */}
             <div className="featured-match-column">
               <span className="featured-match-header-sm">Llave 2 - Definición</span>
               <div className="matchup-row-featured">
@@ -254,8 +241,11 @@ const Home = () => {
                   <span className="match-time-sm" style={{ fontWeight: '700', color: 'var(--accent-yellow)', fontSize: '0.6rem' }}>
                     Metropolitano
                   </span>
+                  <span className="match-time-sm" style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 'bold' }}>
+                    📅 Jue 22 Mayo, 20:00
+                  </span>
                   <span className="match-time-sm" style={{ fontSize: '0.55rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-                    Ida: {match2.ida ? `${match2.ida.goles_local} - ${match2.ida.goles_visitante}` : '1 - 1'} (StFe - Jun)
+                    Ida: {match2.ida ? `${match2.ida.goles_local} - ${match2.ida.goles_visitante}` : '1 - 1'} ({match2.ida ? match2.ida.local : match2.equipo_2} - {match2.ida ? match2.ida.visitante : match2.equipo_1})
                   </span>
                 </div>
                 <div className="team-featured-sm">
@@ -402,133 +392,8 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="home-grid">
-        {/* Live Matches Section */}
-        <div className="live-matches-section">
-          <div className="section-header">
-            <h3 className="section-title">
-              <Activity className="icon-red" size={20} />
-              Partidos en Vivo
-            </h3>
-            <a href="#" className="view-all">Ver Todos</a>
-          </div>
-
-          <div className="live-cards">
-            {/* Live Card 1 */}
-            <div className="live-card">
-              <div className="live-card-header">
-                <span className="match-minute">Min. 74'</span>
-                <span className="badge badge-live">LIVE</span>
-              </div>
-              <div className="live-teams">
-                <div className="live-team">
-                  <div className="team-info-sm">
-                    {topTeams.length > 2 ? <img src={topTeams[2].logo} className="logo-sm" alt="logo" style={{objectFit: 'contain'}}/> : <div className="logo-sm"></div>}
-                    <span>{topTeams.length > 2 ? topTeams[2].equipo : 'Ind. Santa Fe'}</span>
-                  </div>
-                  <span className="score highlight">2</span>
-                </div>
-                <div className="live-team">
-                  <div className="team-info-sm">
-                    {topTeams.length > 3 ? <img src={topTeams[3].logo} className="logo-sm" alt="logo" style={{objectFit: 'contain'}}/> : <div className="logo-sm"></div>}
-                    <span>{topTeams.length > 3 ? topTeams[3].equipo : 'América de Cali'}</span>
-                  </div>
-                  <span className="score highlight">1</span>
-                </div>
-              </div>
-              <div className="live-card-footer">
-                <span className="match-events">Goles: Rodallega 12', 45' - Holgado 34'</span>
-                <TrendingUp size={16} className="icon-muted" />
-              </div>
-            </div>
-
-            {/* Live Card 2 */}
-            <div className="live-card">
-              <div className="live-card-header">
-                <span className="match-minute">Min. 12'</span>
-                <span className="badge badge-live">LIVE</span>
-              </div>
-              <div className="live-teams">
-                <div className="live-team">
-                  <div className="team-info-sm">
-                    {topTeams.length > 4 ? <img src={topTeams[4].logo} className="logo-sm" alt="logo" style={{objectFit: 'contain'}}/> : <div className="logo-sm"></div>}
-                    <span>{topTeams.length > 4 ? topTeams[4].equipo : 'Junior FC'}</span>
-                  </div>
-                  <span className="score highlight">0</span>
-                </div>
-                <div className="live-team">
-                  <div className="team-info-sm">
-                    <div className="logo-sm" style={{backgroundColor: '#64748b'}}></div>
-                    <span>Pereira</span>
-                  </div>
-                  <span className="score highlight">0</span>
-                </div>
-              </div>
-              <div className="live-card-footer">
-                <span className="match-events">Posesión: 65% - 35%</span>
-                <TrendingUp size={16} className="icon-muted" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Top 5 Liga Section */}
-        <div className="top-5-section">
-          <div className="section-header">
-            <h3 className="section-title">
-              <ListIcon />
-              Top 5 Liga 2026
-            </h3>
-          </div>
-          
-          <div className="mini-standings">
-            <table className="mini-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th className="text-left">EQUIPO</th>
-                  <th>PJ</th>
-                  <th>G</th>
-                  <th>DG</th>
-                  <th className="text-yellow">PTS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="6" style={{padding: '2rem'}}>Cargando...</td></tr>
-                ) : (
-                  topTeams.map((team, index) => (
-                    <tr key={team.equipo}>
-                      <td className={index === 0 ? "text-yellow font-bold" : "text-white"}>{index + 1}</td>
-                      <td className="team-cell">
-                        <img src={team.logo} alt="logo" className="logo-xs" style={{objectFit: 'contain', backgroundColor: 'transparent'}} />
-                        {team.equipo}
-                      </td>
-                      <td>{team.pj}</td>
-                      <td>{team.pg}</td>
-                      <td className="text-green">{team.dg > 0 ? `+${team.dg}` : team.dg}</td>
-                      <td className="text-yellow font-bold">{team.pts}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
-
-const ListIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="8" y1="6" x2="21" y2="6"></line>
-    <line x1="8" y1="12" x2="21" y2="12"></line>
-    <line x1="8" y1="18" x2="21" y2="18"></line>
-    <line x1="3" y1="6" x2="3.01" y2="6"></line>
-    <line x1="3" y1="12" x2="3.01" y2="12"></line>
-    <line x1="3" y1="18" x2="3.01" y2="18"></line>
-  </svg>
-);
 
 export default Home;
