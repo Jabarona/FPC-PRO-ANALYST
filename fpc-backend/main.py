@@ -323,11 +323,14 @@ def get_cuadrangulares(anio: int, torneo: str, grupo: str):
 
 @app.get("/api/v1/equipos")
 def get_equipos():
-    """Retorna la lista de todos los equipos únicos en la base de datos con sus logos."""
+    """Retorna la lista de los 20 equipos activos en la temporada 2026 con sus logos."""
     df = get_db_dataframe()
+    # Filtrar estrictamente por la temporada 2026 para mostrar solo los equipos vigentes
+    df_2026 = df[df['season'] == 2026].copy()
+    
     # Extraer equipos locales y visitantes con sus logos
-    locales = df[['equipo_local', 'logo_local']].rename(columns={'equipo_local': 'nombre', 'logo_local': 'logo'})
-    visitantes = df[['equipo_visitante', 'logo_visitante']].rename(columns={'equipo_visitante': 'nombre', 'logo_visitante': 'logo'})
+    locales = df_2026[['equipo_local', 'logo_local']].rename(columns={'equipo_local': 'nombre', 'logo_local': 'logo'})
+    visitantes = df_2026[['equipo_visitante', 'logo_visitante']].rename(columns={'equipo_visitante': 'nombre', 'logo_visitante': 'logo'})
     
     todos = pd.concat([locales, visitantes]).drop_duplicates(subset=['nombre']).dropna(subset=['nombre'])
     equipos_list = todos.sort_values(by='nombre').to_dict(orient='records')
@@ -345,17 +348,21 @@ def get_team_stats(equipo: str):
     if df_team.empty:
         raise HTTPException(status_code=404, detail="Equipo no encontrado")
 
-    # Ordenar por fecha (asumiendo que hay una columna de fecha o podemos usar jornada/season como proxy)
-    # Por ahora usaremos los últimos partidos encontrados
-    df_team = df_team.sort_values(by=['season', 'match_id'], ascending=[False, False])
+    # Filtrar solo los partidos que ya se han jugado (goles no nulos)
+    df_team['goles_local_num'] = pd.to_numeric(df_team['goles_local'], errors='coerce')
+    df_team['goles_visitante_num'] = pd.to_numeric(df_team['goles_visitante'], errors='coerce')
+    df_played = df_team.dropna(subset=['goles_local_num', 'goles_visitante_num']).copy()
     
-    # Estado de forma (últimos 5 partidos)
+    # Ordenar por temporada y match_id descendente (más reciente primero)
+    df_played = df_played.sort_values(by=['season', 'match_id'], ascending=[False, False])
+    
+    # Estado de forma (últimos 5 partidos jugados)
     form = []
     recent_matches = []
-    for _, row in df_team.head(5).iterrows():
+    for _, row in df_played.head(5).iterrows():
         is_home = row['equipo_local'] == equipo
         opponent = row['equipo_visitante'] if is_home else row['equipo_local']
-        g_local, g_visitante = int(row['goles_local']), int(row['goles_visitante'])
+        g_local, g_visitante = int(row['goles_local_num']), int(row['goles_visitante_num'])
         
         res = ""
         if g_local == g_visitante:
@@ -376,11 +383,8 @@ def get_team_stats(equipo: str):
             "status": "Final"
         })
 
-    # Estadísticas tácticas (Simuladas basándose en promedios o datos que tengamos)
-    # En un escenario real, estas vendrían de columnas de xG, posesión, etc.
-    # Como el DF actual es básico, generaremos algunas coherentes
-    
-    # Obtener estadio y ciudad reales desde la base de datos (matches_raw)
+    # Obtener estadio y ciudad reales desde matches_raw usando el match_id
+    # del último partido de local (así evitamos problemas de nombres distintos)
     db_user = os.getenv("DB_USER")
     db_password = os.getenv("DB_PASSWORD")
     db_host = os.getenv("DB_HOST")
@@ -390,11 +394,17 @@ def get_team_stats(equipo: str):
     connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     engine_local = create_engine(connection_string)
     
-    stadium_query = "SELECT data_raw->'fixture'->'venue'->>'name' as stadium, data_raw->'fixture'->'venue'->>'city' as city FROM matches_raw WHERE data_raw->'teams'->'home'->>'name' = %s LIMIT 1;"
-    df_venue = pd.read_sql_query(stadium_query, engine_local, params=(equipo,))
-    
-    estadio_real = df_venue.iloc[0]['stadium'] if not df_venue.empty and pd.notna(df_venue.iloc[0]['stadium']) else "Desconocido"
-    ciudad_real = df_venue.iloc[0]['city'] if not df_venue.empty and pd.notna(df_venue.iloc[0]['city']) else "Desconocida"
+    # Buscar el estadio por match_id del último partido de local jugado
+    df_home = df_played[df_played['equipo_local'] == equipo]
+    estadio_real = "Desconocido"
+    ciudad_real = "Desconocida"
+    if not df_home.empty:
+        last_match_id = int(df_home.iloc[0]['match_id'])
+        stadium_query = "SELECT data_raw->'fixture'->'venue'->>'name' as stadium, data_raw->'fixture'->'venue'->>'city' as city FROM matches_raw WHERE match_id = %s LIMIT 1;"
+        df_venue = pd.read_sql_query(stadium_query, engine_local, params=(last_match_id,))
+        if not df_venue.empty:
+            estadio_real = df_venue.iloc[0]['stadium'] if pd.notna(df_venue.iloc[0]['stadium']) else "Desconocido"
+            ciudad_real = df_venue.iloc[0]['city'] if pd.notna(df_venue.iloc[0]['city']) else "Desconocida"
 
     stats = {
         "posesion": 52,
@@ -403,7 +413,7 @@ def get_team_stats(equipo: str):
         "duelos": 58,
         "remates_promedio": 12.8,
         "faltas_recibidas": 11.4,
-        "posicion_actual": 4, # Esto debería calcularse de la tabla más reciente
+        "posicion_actual": 4,
         "titulos": 10,
         "ciudad": ciudad_real,
         "estadio": estadio_real
@@ -411,7 +421,7 @@ def get_team_stats(equipo: str):
 
     return {
         "equipo": equipo,
-        "form": form[::-1], # Invertir para que el más reciente esté al final a la derecha
+        "form": form[::-1],
         "recent_matches": recent_matches,
         "stats": stats
     }
