@@ -21,7 +21,10 @@ htmlcov/
 
 # Environment variables (Crucial!)
 .env
-fpc-backend/.env
+.env.*
+*.env
+**/.env
+**/.env.*
 
 # Node / JS / React
 node_modules/

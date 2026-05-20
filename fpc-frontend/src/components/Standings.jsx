@@ -180,6 +180,7 @@ const Standings = () => {
           <div className="year-selector">
             <select value={year} onChange={(e) => setYear(e.target.value)} className="year-select">
               <option value="2026">2026</option>
+              <option value="2025">2025</option>
               <option value="2024">2024</option>
               <option value="2023">2023</option>
               <option value="2022">2022</option>

@@ -121,7 +121,9 @@ LOGO_FALLBACKS = {
     "once caldas": "https://media.api-sports.io/football/teams/1136.png",
     "patriotas": "https://media.api-sports.io/football/teams/1140.png",
     "santa fe": "https://media.api-sports.io/football/teams/1139.png",
-    "union magdalena": "https://media.api-sports.io/football/teams/1465.png"
+    "union magdalena": "https://media.api-sports.io/football/teams/1465.png",
+    "deportivo la equidad": "https://media.api-sports.io/football/teams/1134.png",
+    "la equidad": "https://media.api-sports.io/football/teams/1134.png"
 }
 
 def get_db_dataframe():
@@ -232,6 +234,10 @@ HISTORICAL_GROUPS = {
     (2024, "Apertura"): {
         "A": ["Bucaramanga", "Deportivo Pereira", "Millonarios", "Junior"],
         "B": ["Deportes Tolima", "Santa Fe", "Once Caldas", "La Equidad"]
+    },
+    (2025, "Apertura"): {
+        "A": ["America de Cali", "Independiente Medellin", "Junior", "Deportes Tolima"],
+        "B": ["Atletico Nacional", "Millonarios", "Santa Fe", "Once Caldas"]
     },
     (2026, "Apertura"): {
         "A": ["Atletico Nacional", "Millonarios", "Bucaramanga", "Junior"],
@@ -439,16 +445,41 @@ def get_team_stats(equipo: str):
     connection_string = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     engine_local = create_engine(connection_string)
     
-    df_home = df_played[df_played['equipo_local'].isin(aliases)]
+    STADIUM_FALLBACKS = {
+        "la equidad": ("Estadio Metropolitano de Techo", "Bogotá"),
+        "deportivo la equidad": ("Estadio Metropolitano de Techo", "Bogotá"),
+        "llaneros": ("Estadio Bello Horizonte - Rey Pelé", "Villavicencio"),
+        "union magdalena": ("Estadio Sierra Nevada", "Santa Marta"),
+        "unión magdalena": ("Estadio Sierra Nevada", "Santa Marta")
+    }
+    
     estadio_real = "Desconocido"
     ciudad_real = "Desconocida"
-    if not df_home.empty:
-        last_match_id = int(df_home.iloc[0]['match_id'])
-        stadium_query = "SELECT data_raw->'fixture'->'venue'->>'name' as stadium, data_raw->'fixture'->'venue'->>'city' as city FROM matches_raw WHERE match_id = %s LIMIT 1;"
-        df_venue = pd.read_sql_query(stadium_query, engine_local, params=(last_match_id,))
+    
+    try:
+        stadium_query = """
+            SELECT data_raw->'fixture'->'venue'->>'name' as stadium, 
+                   data_raw->'fixture'->'venue'->>'city' as city 
+            FROM matches_raw 
+            WHERE data_raw->'teams'->'home'->>'name' IN %s 
+              AND data_raw->'fixture'->'venue'->>'name' IS NOT NULL 
+              AND data_raw->'fixture'->'venue'->>'name' != '' 
+            ORDER BY season DESC, match_id DESC 
+            LIMIT 1;
+        """
+        df_venue = pd.read_sql_query(stadium_query, engine_local, params=(tuple(aliases),))
         if not df_venue.empty:
-            estadio_real = df_venue.iloc[0]['stadium'] if pd.notna(df_venue.iloc[0]['stadium']) else "Desconocido"
-            ciudad_real = df_venue.iloc[0]['city'] if pd.notna(df_venue.iloc[0]['city']) else "Desconocida"
+            estadio_real = df_venue.iloc[0]['stadium']
+            ciudad_real = df_venue.iloc[0]['city']
+    except Exception as e:
+        print(f"Error querying venue: {e}")
+        
+    if estadio_real == "Desconocido" or not estadio_real or str(estadio_real).strip() == "":
+        for alias in aliases:
+            norm_alias = normalize_team_global(alias)
+            if norm_alias in STADIUM_FALLBACKS:
+                estadio_real, ciudad_real = STADIUM_FALLBACKS[norm_alias]
+                break
 
     # ====== CALCULAR POSICIÓN REAL EN LA TABLA 2026 APERTURA ======
     valid_rounds_2026 = [f"Apertura - {i}" for i in range(1, 21)]

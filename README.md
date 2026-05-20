@@ -22,18 +22,19 @@ La aplicación cuenta con una interfaz premium y oscura de estilo **Glassmorphis
 - **Top 5 Liga**: Tabla minimalista que consume la API en vivo para mostrar a los 5 punteros actuales del torneo con sus escudos oficiales.
 
 ### 2. 📊 Tabla de Posiciones Dinámica (`Standings`)
-- Filtros interactivos por **Año** (e.g. 2022) y **Torneo** (Apertura / Clausura).
+- Filtros interactivos por **Año** (2022, 2023, 2024, 2025, 2026) y **Torneo** (Apertura / Clausura).
+- Soporte completo para **Fase Regular** (20 fechas) y **Cuadrangulares** (Grupo A y Grupo B) mediante consultas dinámicas y mapeos históricos oficiales.
 - Renderizado de logos oficiales dinámicos mapeados desde la base de datos en lugar de imágenes estáticas.
 - **Totalmente Mobile-Friendly**: En celulares la tabla habilita un scroll horizontal suave para evitar que los datos se corten o distorsionen.
 
 ### 3. 🛡️ Directorio de Equipos (`Equipos`)
 - Cuadrícula con las tarjetas de los **20 equipos de la Liga BetPlay**.
 - **Acordeón Interactivo (Vista rápida)**: Al hacer clic en un equipo, la tarjeta se expande de manera responsiva hacia abajo mostrando información clave rápida:
-  - **Estadio**: Dónde juegan de local.
+  - **Estadio**: Dónde juegan de local, con un sistema inteligente de herencia de metadatos (e.g. estadios y logos autocompletados para equipos de 2025/2026 con campos vacíos en la API original como Llaneros, Unión Magdalena o La Equidad).
   - **Últimos 5 Partidos (Forma)**: Indicador minimalista de colores: **Verde** (Victoria), **Amarillo** (Empate) y **Rojo** (Derrota).
 
 ### 4. ⭐ Espacio de Fidelización (`Mi Equipo`)
-- Al ingresar por primera vez, la aplicación le pregunta al usuario su equipo favorito (se guarda de manera persistente en `localStorage`).
+- Al ingresar por primera vez, la aplicación le pregunta al usuario su equipo favorito (se guarda de manera de forma persistente en `localStorage`).
 - **Dashboard Pro Exclusivo**: En esta pestaña se despliega un análisis táctico avanzado y exclusivo del club del usuario:
   - Posición actual gigante con efecto de resplandor.
   - Estadísticas circulares detalladas de posesión de balón, efectividad de pases, duelos ganados y efectividad general.
@@ -55,48 +56,64 @@ La aplicación cuenta con una interfaz premium y oscura de estilo **Glassmorphis
 
 ### Frontend (React.js)
 - **React**: Biblioteca SPA ágil y modular.
-- **Axios**: Cliente de peticiones HTTP para consumir la API.
+- **Vite**: Empaquetador y servidor de desarrollo ultrarrápido.
 - **Vanilla CSS**: Estilos diseñados desde cero (sin Tailwind) para un control absoluto de la respuesta responsive y las micro-animaciones premium.
 - **Lucide React**: Biblioteca de iconos vectoriales modernos.
 
 ### Base de Datos (PostgreSQL)
 - Base de datos relacional robusta.
 - **Vista SQL Optimizada (`v_fpc_matches`)**: Creada específicamente para extraer en tiempo récord la URL del logo local y visitante desde el JSONB bruto (`data_raw`) devuelto originalmente por la API de fútbol.
+- **Herencia de Metadatos**: Consultas dinámicas sobre el historial de encuentros para completar estadios y ciudades vacíos en temporadas recientes con fallbacks robustos controlados por backend.
 
 ---
 
-## ⚙️ Configuración y Despliegue
+## 📂 Estructura del Proyecto
+
+* **`/` (Raíz)**: Archivos de orquestación principal y despliegue.
+  * `docker-compose.yml`: Define y orquesta los servicios de la aplicación.
+  * `.gitignore`: Filtro global mejorado y seguro para evitar subir `.env` o carpetas compiladas.
+* **`/fpc-backend`**: Código fuente de la API FastAPI.
+  * `main.py`: Endpoints del backend, configuraciones de fallbacks y cálculo estadístico.
+  * `auth.py`: Manejo de autenticación (FastAPI Users + JWT).
+  * `requirements.txt`: Dependencias del backend.
+  * `Dockerfile`: Configuración del contenedor Docker para el backend.
+* **`/fpc-frontend`**: Código fuente de la interfaz React.
+  * `/src/components`: Componentes principales (`Standings`, `TeamDashboard`, `Home`, `Sidebar`, `Topbar`).
+  * `Dockerfile`: Configuración del contenedor Docker para el frontend.
+
+---
+
+## ⚙️ Configuración y Despliegue con Docker Compose
+
+El proyecto está completamente contenerizado y configurado para levantarse de manera unificada mediante Docker Compose.
 
 ### Requisitos Previos
-- Docker & Docker Compose instalados.
-- Node.js (v18+) instalado localmente.
+- Docker & Docker Compose instalados y en ejecución.
 
-### Paso 1: Levantar el Backend (FastAPI + PostgreSQL) con Docker
-1. Entra a la carpeta del backend:
-   ```bash
-   cd fpc-backend
-   ```
-2. Asegúrate de tener tu archivo `.env` configurado con tus credenciales de base de datos.
-3. Construye y enciende los contenedores:
-   ```bash
-   docker-compose up --build
-   ```
-El backend estará disponible en: [http://localhost:8000](http://localhost:8000)
+### Paso 1: Configurar Variables de Entorno
+Asegúrate de contar con un archivo `.env` en la raíz del backend (`fpc-backend/.env`) con la configuración correcta de la base de datos. Por ejemplo:
+```env
+DB_USER=postgres
+DB_PASSWORD=tu_contraseña
+DB_HOST=host.docker.internal
+DB_PORT=5432
+DB_NAME=fpc_db
+```
 
-### Paso 2: Levantar el Frontend (React)
-1. Entra a la carpeta del frontend:
-   ```bash
-   cd ../fpc-frontend
-   ```
-2. Instala las dependencias necesarias:
-   ```bash
-   npm install
-   ```
-3. Inicia el servidor de desarrollo:
-   ```bash
-   npm run dev
-   ```
-El dashboard web estará disponible en: [http://localhost:5173](http://localhost:5173) (o el puerto configurado por Vite).
+### Paso 2: Levantar la Aplicación Completa
+Ejecuta el siguiente comando en la raíz del proyecto para construir y encender todos los servicios (Base de datos, Backend y Frontend):
+```bash
+docker compose up --build -d
+```
+
+* **Backend (FastAPI)** estará disponible en: [http://localhost:8000](http://localhost:8000)
+* **Frontend (React)** estará disponible en: [http://localhost:5173](http://localhost:5173)
+
+### Detener los Servicios
+Para apagar los contenedores, ejecuta:
+```bash
+docker compose down
+```
 
 ---
 
