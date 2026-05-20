@@ -77,7 +77,7 @@ const Standings = () => {
   useEffect(() => {
     if (year === '2026' && fase === 'Cuadrangulares') {
       setFase('Regular');
-    } else if (year !== '2026' && ['Cuartos', 'Semifinal', 'Final'].includes(fase)) {
+    } else if (year !== '2026' && ['Cuartos', 'Semifinal'].includes(fase)) {
       setFase('Regular');
     }
   }, [year]);
@@ -149,12 +149,20 @@ const Standings = () => {
                 </button>
               </>
             ) : (
-              <button
-                className={`tab ${fase === 'Cuadrangulares' ? 'active' : ''}`}
-                onClick={() => setFase('Cuadrangulares')}
-              >
-                Cuadrangulares
-              </button>
+              <>
+                <button
+                  className={`tab ${fase === 'Cuadrangulares' ? 'active' : ''}`}
+                  onClick={() => setFase('Cuadrangulares')}
+                >
+                  Cuadrangulares
+                </button>
+                <button
+                  className={`tab ${fase === 'Final' ? 'active' : ''}`}
+                  onClick={() => setFase('Final')}
+                >
+                  Final
+                </button>
+              </>
             )}
           </div>
 
@@ -221,12 +229,16 @@ const Standings = () => {
               return (
                 <div key={index} className="knockout-card">
                   <div className="knockout-card-header">
-                    <span>Llave {index + 1}</span>
-                    {pair.ganador && pair.ganador !== "Empate" && (
+                    <span>{fase === 'Final' ? 'Gran Final' : `Llave ${index + 1}`}</span>
+                    {pair.campeon ? (
+                      <span className="winner-badge" style={{ backgroundColor: 'var(--accent-yellow)', color: '#111', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        🏆 CAMPEÓN: {pair.campeon}
+                      </span>
+                    ) : pair.ganador && pair.ganador !== "Empate" ? (
                       <span className="winner-badge">
                         GANADOR: {pair.ganador}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   
                   <div className="teams-vs-container">

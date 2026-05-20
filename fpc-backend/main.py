@@ -245,6 +245,15 @@ HISTORICAL_GROUPS = {
     }
 }
 
+HISTORICAL_CHAMPIONS = {
+    (2022, "Apertura"): "Atletico Nacional",
+    (2022, "Clausura"): "Deportivo Pereira",
+    (2023, "Apertura"): "Millonarios",
+    (2023, "Clausura"): "Junior",
+    (2024, "Apertura"): "Bucaramanga",
+    (2024, "Clausura"): "Atletico Nacional"
+}
+
 @app.get("/api/v1/tabla/cuadrangulares/{anio}/{torneo}/{grupo}")
 def get_cuadrangulares(anio: int, torneo: str, grupo: str):
     """
@@ -628,6 +637,23 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
     if df_filtered.empty:
         return {"anio": anio, "torneo": torneo, "fase": fase, "parejas": []}
         
+    # Filtrar por torneo
+    def matches_torneo(jornada_val):
+        j_lower = str(jornada_val).lower()
+        if 'clausura' in j_lower:
+            return torneo_cap == 'Clausura'
+        if 'apertura' in j_lower:
+            return torneo_cap == 'Apertura'
+        return torneo_cap == 'Apertura'
+
+    df_filtered = df_filtered[df_filtered['jornada'].apply(matches_torneo)].copy()
+        
+    if df_filtered.empty:
+        return {"anio": anio, "torneo": torneo, "fase": fase, "parejas": []}
+        
+    # Ordenar cronológicamente para poder identificar Ida y Vuelta
+    df_filtered = df_filtered.sort_values(by=['fecha_partido', 'match_id'], ascending=True)
+        
     # Agrupar por enfrentamientos
     # Cada enfrentamiento consta de Ida y Vuelta entre los mismos dos equipos
     pairings = {}
@@ -647,6 +673,7 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
                 "logo_1": logo_a if pairing_key[0] == team_a else logo_b,
                 "equipo_2": pairing_key[1],
                 "logo_2": logo_b if pairing_key[0] == team_a else logo_a,
+                "matches": [],  # Almacenar los partidos cronológicamente
                 "ida": None,
                 "vuelta": None,
                 "global_1": 0,
@@ -656,8 +683,6 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
             
         p = pairings[pairing_key]
         
-        # Determinar si es partido de Ida o Vuelta
-        jornada = row['jornada'].lower()
         match_info = {
             "local": team_a,
             "logo_local": logo_a,
@@ -667,13 +692,28 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
             "goles_visitante": int(row['goles_visitante']) if pd.notna(row['goles_visitante']) else None
         }
         
-        if 'ida' in jornada:
-            p['ida'] = match_info
-        elif 'vuelta' in jornada:
-            p['vuelta'] = match_info
+        p["matches"].append((row['jornada'].lower(), match_info))
             
-    # Calcular marcadores globales y definir ganadores
+    # Asignar Ida/Vuelta, calcular marcadores globales y definir ganadores
     for p in pairings.values():
+        matches = p.pop("matches")
+        
+        # 1. Determinar Ida y Vuelta
+        has_explicit = any('ida' in m[0] or 'vuelta' in m[0] for m in matches)
+        if has_explicit:
+            for jornada_lower, match_info in matches:
+                if 'ida' in jornada_lower:
+                    p['ida'] = match_info
+                elif 'vuelta' in jornada_lower:
+                    p['vuelta'] = match_info
+        else:
+            # Si no hay etiquetas de ida/vuelta explícitas (e.g. finales 2022-2024),
+            # el primer partido es la Ida y el segundo la Vuelta
+            if len(matches) >= 1:
+                p['ida'] = matches[0][1]
+            if len(matches) >= 2:
+                p['vuelta'] = matches[1][1]
+
         g1 = 0
         g2 = 0
         played_any = False
@@ -706,6 +746,17 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
         else:
             p['global_1'] = None
             p['global_2'] = None
+            
+        # Si es la Final, buscar el campeón histórico en la base de mapeo
+        if fase_lower == 'final':
+            campeon_key = (anio, torneo_cap)
+            if campeon_key in HISTORICAL_CHAMPIONS:
+                p['campeon'] = HISTORICAL_CHAMPIONS[campeon_key]
+                p['ganador'] = HISTORICAL_CHAMPIONS[campeon_key]
+            else:
+                p['campeon'] = None
+        else:
+            p['campeon'] = None
             
     return {
         "anio": anio,
