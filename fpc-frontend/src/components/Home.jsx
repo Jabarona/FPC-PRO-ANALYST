@@ -1,397 +1,342 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Activity, ChevronRight, Shield, History, Trophy } from 'lucide-react';
+import { Activity, Shield, History, Trophy, TrendingUp, Calendar, MapPin, Award } from 'lucide-react';
 import './Home.css';
 
 const Home = () => {
-  const [semifinals, setSemifinals] = useState([]);
-  const [semisLoading, setSemisLoading] = useState(true);
-
-  // Fallback de semifinales por si los datos no están cargados completamente en la DB
-  const mockSemifinals = [
-    {
-      "equipo_1": "Atl. Nacional",
-      "logo_1": "https://media.api-sports.io/football/teams/1137.png",
-      "equipo_2": "Tolima",
-      "logo_2": "https://media.api-sports.io/football/teams/1142.png",
-      "ida": {
-        "local": "Tolima",
-        "logo_local": "https://media.api-sports.io/football/teams/1142.png",
-        "visitante": "Atl. Nacional",
-        "logo_visitante": "https://media.api-sports.io/football/teams/1137.png",
-        "goles_local": 0,
-        "goles_visitante": 1
-      },
-      "vuelta": {
-        "local": "Atl. Nacional",
-        "logo_local": "https://media.api-sports.io/football/teams/1137.png",
-        "visitante": "Tolima",
-        "logo_visitante": "https://media.api-sports.io/football/teams/1142.png",
-        "goles_local": null,
-        "goles_visitante": null
-      },
-      "global_1": 1,
-      "global_2": 0,
-      "ganador": null
-    },
-    {
-      "equipo_1": "Junior Barranquilla",
-      "logo_1": "https://media.api-sports.io/football/teams/1135.png",
-      "equipo_2": "Santa Fe",
-      "logo_2": "https://media.api-sports.io/football/teams/1139.png",
-      "ida": {
-        "local": "Santa Fe",
-        "logo_local": "https://media.api-sports.io/football/teams/1139.png",
-        "visitante": "Junior Barranquilla",
-        "logo_visitante": "https://media.api-sports.io/football/teams/1135.png",
-        "goles_local": 1,
-        "goles_visitante": 1
-      },
-      "vuelta": {
-        "local": "Junior Barranquilla",
-        "logo_local": "https://media.api-sports.io/football/teams/1135.png",
-        "visitante": "Santa Fe",
-        "logo_visitante": "https://media.api-sports.io/football/teams/1139.png",
-        "goles_local": null,
-        "goles_visitante": null
-      },
-      "global_1": 1,
-      "global_2": 1,
-      "ganador": null
-    }
-  ];
+  const [nacionalStats, setNacionalStats] = useState(null);
+  const [juniorStats, setJuniorStats] = useState(null);
+  const [h2hAnalisis, setH2hAnalisis] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSemifinals = async () => {
+    const fetchAllData = async () => {
       try {
-        const res = await axios.get('http://localhost:8000/api/v1/tabla/fases-eliminatorias/2026/apertura/semifinal');
-        if (res.data && res.data.parejas && res.data.parejas.length > 0) {
-          setSemifinals(res.data.parejas);
-        } else {
-          setSemifinals(mockSemifinals);
-        }
+        const [nacionalRes, juniorRes, h2hRes] = await Promise.all([
+          axios.get('http://localhost:8000/api/v1/equipos/Atletico Nacional/stats'),
+          axios.get('http://localhost:8000/api/v1/equipos/Junior/stats'),
+          axios.get('http://localhost:8000/api/v1/analisis/h2h?team_a=Atletico Nacional&team_b=Junior&limit=5')
+        ]);
+        setNacionalStats(nacionalRes.data);
+        setJuniorStats(juniorRes.data);
+        setH2hAnalisis(h2hRes.data);
       } catch (err) {
-        console.error("Error fetching 2026 semifinals", err);
-        setSemifinals(mockSemifinals);
+        console.error("Error fetching data for finalists", err);
       } finally {
-        setSemisLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchSemifinals();
+    fetchAllData();
   }, []);
 
-  // Lógica de Marcador Global Dinámico
-  const calculateGlobalScore = (pair) => {
-    let g1 = 0;
-    let g2 = 0;
-    let playedAny = false;
+  if (loading) {
+    return (
+      <div className="home-container">
+        <div className="no-data-card" style={{ padding: '4rem', textAlign: 'center' }}>
+          <div className="dot pulse" style={{ display: 'inline-block', marginRight: '10px' }}></div>
+          Cargando datos de la Gran Final BetPlay 2026 y Análisis H2H...
+        </div>
+      </div>
+    );
+  }
 
-    if (pair.ida && pair.ida.goles_local !== null && pair.ida.goles_visitante !== null) {
-      playedAny = true;
-      if (pair.ida.local === pair.equipo_1) {
-        g1 += pair.ida.goles_local;
-        g2 += pair.ida.goles_visitante;
-      } else {
-        g2 += pair.ida.goles_local;
-        g1 += pair.ida.goles_visitante;
-      }
-    }
-
-    if (pair.vuelta && pair.vuelta.goles_local !== null && pair.vuelta.goles_visitante !== null) {
-      playedAny = true;
-      if (pair.vuelta.local === pair.equipo_1) {
-        g1 += pair.vuelta.goles_local;
-        g2 += pair.vuelta.goles_visitante;
-      } else {
-        g2 += pair.vuelta.goles_local;
-        g1 += pair.vuelta.goles_visitante;
-      }
-    }
-
-    return playedAny ? { g1, g2 } : { g1: null, g2: null };
+  // Fallbacks de estadísticas por si no se conecta bien
+  const nac = nacionalStats?.stats || {
+    pts_actuales: 40,
+    pj_total: 19,
+    wins: 13,
+    draws: 1,
+    losses: 5,
+    goles_favor: 35,
+    goles_contra: 15,
+    dg: 20,
+    posicion_actual: 1,
+    estadio: "Atanasio Girardot",
+    ciudad: "Medellín"
   };
 
-  // Lógica para determinar Estado Actual de la Serie
-  const getSerieStateText = (pair) => {
-    const { g1, g2 } = calculateGlobalScore(pair);
-    const isVueltaPlayed = pair.vuelta && pair.vuelta.goles_local !== null;
-    
-    if (isVueltaPlayed) {
-      if (g1 > g2) {
-        return `${pair.equipo_1} clasifica a la Gran Final con un marcador global de ${g1}-${g2}.`;
-      } else if (g2 > g1) {
-        return `${pair.equipo_2} clasifica a la Gran Final con un marcador global de ${g2}-${g1}.`;
-      } else {
-        return `Serie empatada ${g1}-${g2} en el global. Definición por penaltis en curso para definir el finalista.`;
-      }
-    }
-
-    const diff = (g1 || 0) - (g2 || 0);
-    const team1 = pair.equipo_1;
-    const team2 = pair.equipo_2;
-
-    if (diff === 0) {
-      return `La serie está completamente empatada. Cualquier equipo que gane el partido de vuelta en los 90' clasificará directo; un nuevo empate enviará la definición a los tiros de penalti.`;
-    }
-
-    if (diff > 0) {
-      const awayTeam = pair.vuelta ? pair.vuelta.visitante : team2;
-      const homeTeam = pair.vuelta ? pair.vuelta.local : team1;
-      return `${team1} tiene ventaja de +${diff} en la ida. Como visitante en la vuelta, ${awayTeam} debe ganar por ${diff + 1} goles o más para clasificar directo, o ganar por exactamente ${diff} gol para forzar penales.`;
-    } else {
-      const absDiff = Math.abs(diff);
-      const awayTeam = pair.vuelta ? pair.vuelta.visitante : team1;
-      const homeTeam = pair.vuelta ? pair.vuelta.local : team2;
-      return `${team2} tiene ventaja de +${absDiff} en la ida. Como visitante en la vuelta, ${awayTeam} debe ganar por ${absDiff + 1} goles o más para clasificar directo, o ganar por exactamente ${absDiff} gol para forzar penales.`;
-    }
+  const jun = juniorStats?.stats || {
+    pts_actuales: 35,
+    pj_total: 19,
+    wins: 11,
+    draws: 2,
+    losses: 6,
+    goles_favor: 31,
+    goles_contra: 24,
+    dg: 7,
+    posicion_actual: 2,
+    estadio: "Metropolitano Roberto Meléndez",
+    ciudad: "Barranquilla"
   };
 
-  // Mapeo analítico de H2H y Fase Regular
-  const getAnalyticalData = (team1, team2) => {
-    const key = [team1.toLowerCase(), team2.toLowerCase()].sort().join('_');
-    
-    const data = {
-      'atl. nacional_tolima': {
-        h2h: '4 enfrentamientos definitivos en las finales del 2022-I y 2024-II. Atl. Nacional ganó ambas series coronándose campeón de liga en ambas ocasiones.',
-        regularSeason: 'Atl. Nacional finalizó la Fase Regular como la mejor ofensiva del torneo con 35 goles a favor (+20 DG). Deportes Tolima responde con una defensa extremadamente compacta, habiendo encajado solo 17 goles en 19 encuentros.'
-      },
-      'junior barranquilla_santa fe': {
-        h2h: 'Enfrentamiento inédito en fases de eliminación directa directa (cuadrangulares o finales) entre 2022 y 2025. Esta semifinal 2026 representa una serie histórica reciente.',
-        regularSeason: 'Junior FC llega con un ataque letal de 31 goles a favor y 35 puntos acumulados en la fase regular. Santa Fe destaca por su equilibrio defensivo, concediendo solo 22 goles en 19 partidos.'
-      }
-    };
-    
-    return data[key] || {
-      h2h: 'Historial parejo en fases de definición. Serie altamente disputada en los últimos torneos.',
-      regularSeason: 'Ambos equipos llegan con rendimiento similar en la Fase Regular, demostrando gran consistencia táctica.'
-    };
+  const h2h = h2hAnalisis || {
+    total_partidos: 5,
+    victorias_a: 2,
+    victorias_b: 1,
+    empates: 2,
+    porcentaje_a: 40.0,
+    porcentaje_b: 20.0,
+    porcentaje_empate: 40.0,
+    goles_a: 9,
+    goles_b: 4,
+    goles_promedio: 2.6,
+    ventaja: "Atletico Nacional",
+    justificacion: "Tiene 1 victoria(s) más en los últimos 5 encuentros.",
+    partidos: [
+      { season: 2026, jornada: "Apertura - 3", local: "Junior", goles_local: 0, goles_visitante: 4, visitante: "Atletico Nacional", resultado: "Ganó Atletico Nacional" },
+      { season: 2025, jornada: "Apertura - 20", local: "Atletico Nacional", goles_local: 2, goles_visitante: 3, visitante: "Junior", resultado: "Ganó Junior" },
+      { season: 2024, jornada: "Clausura - 10", local: "Atletico Nacional", goles_local: 2, goles_visitante: 0, visitante: "Junior", resultado: "Ganó Atletico Nacional" },
+      { season: 2024, jornada: "Apertura - 10", local: "Junior", goles_local: 0, goles_visitante: 0, visitante: "Atletico Nacional", resultado: "Empate" },
+      { season: 2023, jornada: "Clausura - 12", local: "Junior", goles_local: 1, goles_visitante: 1, visitante: "Atletico Nacional", resultado: "Empate" }
+    ]
   };
 
-  // Helper para obtener el marcador de cada equipo en la ida/vuelta
-  const getLegScore = (legData, teamName) => {
-    if (!legData || legData.goles_local === null) return '-';
-    return legData.local === teamName ? legData.goles_local : legData.goles_visitante;
-  };
-
-  const match1 = semifinals[0] || mockSemifinals[0];
-  const match2 = semifinals[1] || mockSemifinals[1];
-
-  const m1LocalName = match1.vuelta ? match1.vuelta.local : match1.equipo_1;
-  const m1LocalLogo = match1.vuelta ? match1.vuelta.logo_local : match1.logo_1;
-  const m1VisitanteName = match1.vuelta ? match1.vuelta.visitante : match1.equipo_2;
-  const m1VisitanteLogo = match1.vuelta ? match1.vuelta.logo_visitante : match1.logo_2;
-
-  const m2LocalName = match2.vuelta ? match2.vuelta.local : match2.equipo_1;
-  const m2LocalLogo = match2.vuelta ? match2.vuelta.logo_local : match2.logo_1;
-  const m2VisitanteName = match2.vuelta ? match2.vuelta.visitante : match2.equipo_2;
-  const m2VisitanteLogo = match2.vuelta ? match2.vuelta.logo_visitante : match2.logo_2;
+  const nacLogo = nacionalStats?.logo || "https://media.api-sports.io/football/teams/1137.png";
+  const junLogo = juniorStats?.logo || "https://media.api-sports.io/football/teams/1135.png";
 
   return (
     <div className="home-container">
-      {/* Featured Match Banner */}
-      <div className="featured-banner" style={{ padding: '2.5rem 2rem' }}>
+      {/* Gran Final Banner */}
+      <div className="featured-banner final-banner">
         <div className="banner-content" style={{ maxWidth: '1000px' }}>
           <div className="banner-header">
-            <span className="badge badge-red">
+            <span className="badge badge-gold">
               <span className="dot pulse"></span>
-              DEFINICIÓN: SEMIFINALES VUELTA 2026
+              LA GRAN FINAL LIGA BETPLAY 2026
             </span>
-            <span className="league-name">LIGA BETPLAY LIGA 2026</span>
+            <span className="league-subtitle">BARRANQUILLA VS MEDELLÍN</span>
           </div>
 
-          <div className="featured-matchups-grid">
-            {/* Llave 1: Nacional vs Tolima */}
-            <div className="featured-match-column">
-              <span className="featured-match-header-sm">Llave 1 - Definición</span>
-              <div className="matchup-row-featured">
-                <div className="team-featured-sm">
-                  <img src={m1LocalLogo} alt={m1LocalName} className="logo-featured-sm" style={{ objectFit: 'contain' }} />
-                  <h3>{m1LocalName}</h3>
-                </div>
-                <div className="vs-container-sm">
-                  <span className="vs-text-sm">VS</span>
-                  <span className="match-time-sm" style={{ fontWeight: '700', color: 'var(--accent-yellow)', fontSize: '0.6rem' }}>
-                    Atanasio Girardot
-                  </span>
-                  <span className="match-time-sm" style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                    📅 Mié 21 Mayo, 20:00
-                  </span>
-                  <span className="match-time-sm" style={{ fontSize: '0.55rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-                    Ida: {match1.ida ? `${match1.ida.goles_local} - ${match1.ida.goles_visitante}` : '0 - 1'} ({match1.ida ? match1.ida.local : match1.equipo_2} - {match1.ida ? match1.ida.visitante : match1.equipo_1})
-                  </span>
-                </div>
-                <div className="team-featured-sm">
-                  <img src={m1VisitanteLogo} alt={m1VisitanteName} className="logo-featured-sm" style={{ objectFit: 'contain' }} />
-                  <h3>{m1VisitanteName}</h3>
-                </div>
-              </div>
+          <div className="finalist-versus-grid">
+            {/* Junior */}
+            <div className="finalist-column junior-side">
+              <img src={junLogo} alt="Junior FC" className="finalist-logo-lg animate-bounce-slow" />
+              <h2>Junior FC</h2>
+              <span className="finalist-rank">Sublíder de Fase Regular</span>
             </div>
 
-            {/* Llave 2: Junior vs Santa Fe */}
-            <div className="featured-match-column">
-              <span className="featured-match-header-sm">Llave 2 - Definición</span>
-              <div className="matchup-row-featured">
-                <div className="team-featured-sm">
-                  <img src={m2LocalLogo} alt={m2LocalName} className="logo-featured-sm" style={{ objectFit: 'contain' }} />
-                  <h3>{m2LocalName}</h3>
-                </div>
-                <div className="vs-container-sm">
-                  <span className="vs-text-sm">VS</span>
-                  <span className="match-time-sm" style={{ fontWeight: '700', color: 'var(--accent-yellow)', fontSize: '0.6rem' }}>
-                    Metropolitano
-                  </span>
-                  <span className="match-time-sm" style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                    📅 Jue 22 Mayo, 20:00
-                  </span>
-                  <span className="match-time-sm" style={{ fontSize: '0.55rem', opacity: 0.8, letterSpacing: '0.5px' }}>
-                    Ida: {match2.ida ? `${match2.ida.goles_local} - ${match2.ida.goles_visitante}` : '1 - 1'} ({match2.ida ? match2.ida.local : match2.equipo_2} - {match2.ida ? match2.ida.visitante : match2.equipo_1})
-                  </span>
-                </div>
-                <div className="team-featured-sm">
-                  <img src={m2VisitanteLogo} alt={m2VisitanteName} className="logo-featured-sm" style={{ objectFit: 'contain' }} />
-                  <h3>{m2VisitanteName}</h3>
-                </div>
+            <div className="finalist-vs-middle">
+              <div className="trophy-glow">
+                <Trophy size={48} className="icon-gold" />
               </div>
+              <span className="vs-large">VS</span>
+              <span className="match-status-label">IDA & VUELTA</span>
+            </div>
+
+            {/* Atletico Nacional */}
+            <div className="finalist-column nacional-side">
+              <img src={nacLogo} alt="Atl. Nacional" className="finalist-logo-lg animate-bounce-slow" />
+              <h2>Atl. Nacional</h2>
+              <span className="finalist-rank">Líder de Fase Regular</span>
             </div>
           </div>
 
-          <div className="banner-actions" style={{ marginTop: '0.5rem' }}>
-            <button className="btn-primary">
-              <Activity size={18} />
-              VER ANÁLISIS PRE-PARTIDOS
-            </button>
-            <button className="btn-secondary">RECORDATORIOS</button>
+          <div className="final-matches-schedule">
+            <div className="schedule-card">
+              <span className="schedule-title">Partido de Ida</span>
+              <div className="schedule-detail">
+                <MapPin size={14} className="text-yellow" />
+                <span>Estadio Metropolitano, Barranquilla</span>
+              </div>
+              <div className="schedule-detail">
+                <Calendar size={14} className="text-yellow" />
+                <span>Próximamente (Definición de fechas)</span>
+              </div>
+            </div>
+            <div className="schedule-card">
+              <span className="schedule-title">Partido de Vuelta (Cierre)</span>
+              <div className="schedule-detail">
+                <MapPin size={14} className="text-yellow" />
+                <span>Estadio Atanasio Girardot, Medellín</span>
+              </div>
+              <div className="schedule-detail">
+                <Calendar size={14} className="text-yellow" />
+                <span>Próximamente (Definición de fechas)</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* DEFINICIÓN SEMIFINALES LIGA BETPLAY 2026 */}
-      <div className="semifinals-section">
-        <div className="section-header" style={{ marginBottom: '0.5rem' }}>
+      {/* Comparison & Stats section */}
+      <div className="final-analysis-section">
+        <div className="section-header">
           <h3 className="section-title">
-            <Trophy className="text-yellow" size={22} style={{ color: 'var(--accent-yellow)' }} />
-            Definición Semifinales Liga BetPlay 2026
+            <Award className="icon-gold" size={24} />
+            Comparativa de Rendimiento (Fase Regular 2026)
           </h3>
-          <span className="league-name" style={{ fontSize: '0.75rem' }}>ANÁLISIS DE DATOS Y LOGS</span>
         </div>
 
-        <div className="semifinals-grid">
-          {semisLoading ? (
-            <div className="no-data-card" style={{ gridColumn: '1/-1', padding: '2rem' }}>
-              Cargando análisis de Semifinales...
+        <div className="stats-comparison-grid">
+          {/* Junior Stats */}
+          <div className="team-stats-card junior-card">
+            <div className="card-team-header">
+              <img src={junLogo} alt="Junior" className="logo-card-header" />
+              <h4>JUNIOR BARRANQUILLA</h4>
             </div>
-          ) : (
-            semifinals.map((pair, index) => {
-              const { g1, g2 } = calculateGlobalScore(pair);
-              const isVueltaPlayed = pair.vuelta && pair.vuelta.goles_local !== null;
-              const globalText = g1 !== null ? `Global: ${g1} - ${g2}` : 'Global: 0 - 0';
-              const analysis = getAnalyticalData(pair.equipo_1, pair.equipo_2);
-              const winnerName = g1 > g2 ? pair.equipo_1 : g2 > g1 ? pair.equipo_2 : null;
+            <div className="stats-list">
+              <div className="stat-row">
+                <span>Puntos Totales</span>
+                <span className="stat-value text-red">{jun.pts_actuales} pts</span>
+              </div>
+              <div className="stat-row">
+                <span>Partidos Jugados</span>
+                <span>{jun.pj_total}</span>
+              </div>
+              <div className="stat-row">
+                <span>Victorias / Empates / Derrotas</span>
+                <span>{jun.wins} / {jun.draws} / {jun.losses}</span>
+              </div>
+              <div className="stat-row">
+                <span>Goles Anotados / Recibidos</span>
+                <span>{jun.goles_favor} / {jun.goles_contra}</span>
+              </div>
+              <div className="stat-row">
+                <span>Diferencia de Goles</span>
+                <span className={jun.dg >= 0 ? "text-green" : "text-red"}>
+                  {jun.dg >= 0 ? `+${jun.dg}` : jun.dg}
+                </span>
+              </div>
+              <div className="stat-row">
+                <span>Posición de Clasificación</span>
+                <span className="stat-position">#2</span>
+              </div>
+            </div>
+          </div>
 
-              return (
-                <div key={index} className="semifinal-card">
-                  <div className="semifinal-header">
-                    <span className="semifinal-title">Llave {index + 1} - Semifinal 2026</span>
-                    {isVueltaPlayed && winnerName ? (
-                      <span className="finalist-badge">
-                        🏆 CLASIFICADO A LA GRAN FINAL: {winnerName}
-                      </span>
-                    ) : (
-                      <span className="global-badge">
-                        {globalText}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="match-scores-container">
-                    {/* Fila del Equipo 1 */}
-                    <div className="match-score-row">
-                      <div className="match-score-team">
-                        <img 
-                          src={pair.logo_1 || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
-                          alt={pair.equipo_1} 
-                          className="match-score-logo" 
-                        />
-                        <span>{pair.equipo_1}</span>
-                      </div>
-                      <div className="match-score-values">
-                        <span className="match-score-val" title="Goles Ida">{getLegScore(pair.ida, pair.equipo_1)}</span>
-                        <span className="match-score-val" title="Goles Vuelta">{getLegScore(pair.vuelta, pair.equipo_1)}</span>
-                        <span className="match-score-val final-score" title="Total Global">{g1 !== null ? g1 : '-'}</span>
-                      </div>
-                    </div>
-
-                    {/* Fila del Equipo 2 */}
-                    <div className="match-score-row">
-                      <div className="match-score-team">
-                        <img 
-                          src={pair.logo_2 || "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png"} 
-                          alt={pair.equipo_2} 
-                          className="match-score-logo" 
-                        />
-                        <span>{pair.equipo_2}</span>
-                      </div>
-                      <div className="match-score-values">
-                        <span className="match-score-val" title="Goles Ida">{getLegScore(pair.ida, pair.equipo_2)}</span>
-                        <span className="match-score-val" title="Goles Vuelta">{getLegScore(pair.vuelta, pair.equipo_2)}</span>
-                        <span className="match-score-val final-score" title="Total Global">{g2 !== null ? g2 : '-'}</span>
-                      </div>
-                    </div>
-
-                    {/* Fila de Status */}
-                    <div className="match-score-row" style={{ marginTop: '0.25rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                      <span className="match-events" style={{ fontSize: '0.7rem' }}>
-                        Ida: JUGADO (FT) | Vuelta: {isVueltaPlayed ? 'JUGADO (FT)' : 'PENDIENTE (NS)'}
-                      </span>
-                      <span className={`match-status-badge ${isVueltaPlayed ? 'ft' : 'ns'}`}>
-                        {isVueltaPlayed ? 'Serie Definida' : 'Vuelta pendiente'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bloque Analítico por Llave */}
-                  <div className="analytics-block">
-                    {/* 1. Estado Actual de la Serie */}
-                    <div className="analytics-item">
-                      <div className="analytics-icon-wrapper">
-                        <Activity size={15} />
-                      </div>
-                      <div className="analytics-text-container">
-                        <span className="analytics-label">Estado de la Serie</span>
-                        <span className="analytics-content">{getSerieStateText(pair)}</span>
-                      </div>
-                    </div>
-
-                    {/* 2. Historial Directo (H2H) */}
-                    <div className="analytics-item">
-                      <div className="analytics-icon-wrapper">
-                        <History size={15} />
-                      </div>
-                      <div className="analytics-text-container">
-                        <span className="analytics-label">Historial Definiciones (2022-2025)</span>
-                        <span className="analytics-content">{analysis.h2h}</span>
-                      </div>
-                    </div>
-
-                    {/* 3. Comparativa de Rendimiento Todos contra Todos */}
-                    <div className="analytics-item">
-                      <div className="analytics-icon-wrapper">
-                        <Shield size={15} />
-                      </div>
-                      <div className="analytics-text-container">
-                        <span className="analytics-label">Desempeño Todos contra Todos 2026</span>
-                        <span className="analytics-content">{analysis.regularSeason}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+          {/* Atletico Nacional Stats */}
+          <div className="team-stats-card nacional-card">
+            <div className="card-team-header">
+              <img src={nacLogo} alt="Nacional" className="logo-card-header" />
+              <h4>ATLÉTICO NACIONAL</h4>
+            </div>
+            <div className="stats-list">
+              <div className="stat-row">
+                <span>Puntos Totales</span>
+                <span className="stat-value text-green">{nac.pts_actuales} pts</span>
+              </div>
+              <div className="stat-row">
+                <span>Partidos Jugados</span>
+                <span>{nac.pj_total}</span>
+              </div>
+              <div className="stat-row">
+                <span>Victorias / Empates / Derrotas</span>
+                <span>{nac.wins} / {nac.draws} / {nac.losses}</span>
+              </div>
+              <div className="stat-row">
+                <span>Goles Anotados / Recibidos</span>
+                <span>{nac.goles_favor} / {nac.goles_contra}</span>
+              </div>
+              <div className="stat-row">
+                <span>Diferencia de Goles</span>
+                <span className={nac.dg >= 0 ? "text-green" : "text-red"}>
+                  {nac.dg >= 0 ? `+${nac.dg}` : nac.dg}
+                </span>
+              </div>
+              <div className="stat-row">
+                <span>Posición de Clasificación</span>
+                <span className="stat-position text-green">#1</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Head to Head (H2H) Analytical section */}
+      <div className="h2h-analysis-section">
+        <div className="section-header">
+          <h3 className="section-title">
+            <History size={24} className="text-yellow" />
+            Análisis de Enfrentamientos Directos (Últimos {h2h.total_partidos} H2H)
+          </h3>
+          <span className="h2h-badge">EVALUADOR DINÁMICO</span>
+        </div>
+
+        <div className="h2h-layout">
+          <div className="h2h-results-panel">
+            <h4 className="panel-title">Historial Reciente (Liga BetPlay)</h4>
+            <div className="h2h-matches-list">
+              {h2h.partidos.map((m, idx) => {
+                // Formato limpio de nombres: bolds consistentes e independientes de quién sea local
+                const isNacLocal = m.local.toLowerCase().includes("nacional");
+                const isJunLocal = m.local.toLowerCase().includes("junior");
+                
+                return (
+                  <div key={idx} className="h2h-match-row">
+                    <div className="h2h-match-meta">
+                      <span>Temp. {m.season} | {m.jornada.split(" - ")[0]}</span>
+                    </div>
+                    <div className="h2h-match-scores">
+                      <span className="h2h-team-bold h2h-team-local">{m.local}</span>
+                      <span className="h2h-score-box">{m.goles_local} - {m.goles_visitante}</span>
+                      <span className="h2h-team-bold h2h-team-visitor">{m.visitante}</span>
+                    </div>
+                    <div className={`h2h-result-label ${m.resultado.toLowerCase().replace(/ /g, "-")}`}>
+                      {m.resultado}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="h2h-verdict-panel">
+            <h4 className="panel-title">Diagnóstico y Probabilidades</h4>
+            <div className="verdict-card">
+              <div className="verdict-header">
+                <TrendingUp size={20} className="text-yellow" />
+                <span>MÉTRICAS ESTIMADAS (ÚLTIMOS 5 DUELOS)</span>
+              </div>
+              
+              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
+                    <span>Probabilidad Victoria Atl. Nacional:</span>
+                    <strong>{h2h.porcentaje_a}%</strong>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
+                    <div style={{ width: `${h2h.porcentaje_a}%`, height: '100%', background: '#10b981', borderRadius: '3px' }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
+                    <span>Probabilidad Victoria Junior:</span>
+                    <strong>{h2h.porcentaje_b}%</strong>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
+                    <div style={{ width: `${h2h.porcentaje_b}%`, height: '100%', background: '#ef4444', borderRadius: '3px' }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '2px' }}>
+                    <span>Probabilidad de Empate:</span>
+                    <strong>{h2h.porcentaje_empate}%</strong>
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
+                    <div style={{ width: `${h2h.porcentaje_empate}%`, height: '100%', background: '#64748b', borderRadius: '3px' }}></div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span>Goles Promedio por Partido:</span>
+                    <strong style={{ color: 'var(--accent-yellow)', fontSize: '1rem' }}>{h2h.goles_promedio}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div className="verdict-banner-footer" style={{ marginTop: '0.75rem' }}>
+                <strong>Ventaja estimada:</strong> {h2h.ventaja === "Ninguno" ? "Ninguno (Historial parejo)" : h2h.ventaja.toUpperCase()}
+                <br />
+                <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>{h2h.justificacion}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

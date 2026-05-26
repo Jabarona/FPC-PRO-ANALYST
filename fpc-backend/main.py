@@ -765,3 +765,19 @@ def get_fases_eliminatorias(anio: int, torneo: str, fase: str):
         "parejas": list(pairings.values())
     }
 
+@app.get("/api/v1/analisis/h2h")
+def get_h2h_analisis(team_a: str, team_b: str, limit: int = 5):
+    """
+    Retorna el análisis de enfrentamientos directos entre dos equipos
+    utilizando el módulo reutilizable h2h_evaluator.
+    """
+    from h2h_evaluator import get_h2h_data
+    try:
+        data = get_h2h_data(team_a, team_b, limit)
+        if not data:
+            raise HTTPException(status_code=404, detail="No se encontraron partidos directos entre los equipos seleccionados.")
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
